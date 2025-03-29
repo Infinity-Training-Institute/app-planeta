@@ -1,5 +1,6 @@
 import 'package:app_planeta/presentation/components/invoce_details.dart';
 import 'package:app_planeta/presentation/components/invoice_component.dart';
+import 'package:app_planeta/providers/connectivity_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/syncronized_data.dart';
@@ -26,21 +27,30 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _syncData(BuildContext context) async {
-    _showLoadingDialog(context);
-
-    await Provider.of<SyncronizedData>(
+    // Verificar conexión a internet
+    final connectivityProvider = Provider.of<ConnectivityProvider>(
       context,
       listen: false,
-    ).getDataToCloud(context);
+    );
 
-    if (mounted) {
-      Navigator.pop(context);
-      _loadProducts();
-      _showAlert(
+    if (connectivityProvider.isConnected) {
+      _showLoadingDialog(context);
+
+      await Provider.of<SyncronizedData>(
         context,
-        Provider.of<SyncronizedData>(context, listen: false).message,
-      );
+        listen: false,
+      ).getDataToCloud(context);
+
+      if (context.mounted) {
+        Navigator.pop(context);
+        _loadProducts();
+        _showAlert(
+          context,
+          Provider.of<SyncronizedData>(context, listen: false).message,
+        );
+      }
     }
+    return;
   }
 
   void _loadProducts() async {
