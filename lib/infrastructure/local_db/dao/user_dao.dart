@@ -50,22 +50,20 @@ class UserDao {
     return List.generate(maps.length, (i) => UserModel.fromMap(maps[i]));
   }
 
-  Future<int> updateUser(UserModel user) async {
+  Future<int?> getFacturaAlternaUsuario(String usuario) async {
     final db = await AppDatabase.database;
-    return await db.update(
-      'usuarios',
-      user.toMap(),
-      where: 'Cod_Usuario = ?',
-      whereArgs: [user.codUsuario],
-    );
-  }
 
-  Future<int> deleteUser(int id) async {
-    final db = await AppDatabase.database;
-    return await db.delete(
-      'usuarios',
-      where: 'Cod_Usuario = ?',
-      whereArgs: [id],
+    final List<Map<String, dynamic>> maps = await db.query(
+      'Usuarios',
+      columns: ['Factura_Alterna_Usuario'],
+      where: 'Nick_Usuario = ?',
+      whereArgs: [usuario],
     );
+
+    if (maps.isNotEmpty) {
+      return maps.first['Factura_Alterna_Usuario'] as int?;
+    }
+
+    return null;
   }
 }

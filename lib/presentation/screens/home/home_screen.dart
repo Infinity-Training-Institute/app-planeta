@@ -1,11 +1,12 @@
+import 'package:app_planeta/infrastructure/local_db/dao/index.dart';
+import 'package:app_planeta/infrastructure/local_db/models/index.dart';
 import 'package:app_planeta/presentation/components/invoce_details.dart';
 import 'package:app_planeta/presentation/components/invoice_component.dart';
 import 'package:app_planeta/providers/connectivity_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../../providers/syncronized_data.dart';
-import '../../../infrastructure/local_db/dao/products_dao.dart';
-import '../../../infrastructure/local_db/models/products_model.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -17,16 +18,26 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   // ignore: unused_field
   List<ProductsModel> _productos = [];
+  final UpdateDao _updateDao = UpdateDao();
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _syncData(context);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Obtener fecha actual en formato YYYY-MM-DD
+      String fechaHoy = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+      // Verificar si ya hay una actualización con la fecha de hoy
+      UpdateModel? existingUpdate = await _updateDao.getInfoByDate(fechaHoy);
+
+      if (existingUpdate == null) {
+        _syncData(context);
+      }
     });
   }
 
   void _syncData(BuildContext context) async {
+    if (!context.mounted) return;
     // Verificar conexión a internet
     final connectivityProvider = Provider.of<ConnectivityProvider>(
       context,

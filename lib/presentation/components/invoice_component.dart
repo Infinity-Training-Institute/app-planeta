@@ -29,8 +29,6 @@ class _InvoiceComponentState extends State<InvoiceComponent> {
       usuarios = data;
       isLoading = false;
     });
-
-    debugPrint(usuarios.toString());
   }
 
   @override

@@ -1,13 +1,13 @@
 import 'package:app_planeta/infrastructure/adapters/dio_adapter.dart';
-import 'package:app_planeta/infrastructure/local_db/dao/products_dao.dart';
-import 'package:app_planeta/infrastructure/local_db/models/products_model.dart';
-import 'package:app_planeta/infrastructure/local_db/dao/update_dao.dart';
-import 'package:app_planeta/infrastructure/local_db/models/update_model.dart';
 import 'package:flutter/material.dart';
 import '../providers/connectivity_provider.dart';
 import 'package:provider/provider.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
+
+// importacion modelos y dao
+import '../infrastructure/local_db/models/index.dart';
+import '../infrastructure/local_db/dao/index.dart';
 
 class SyncronizedData with ChangeNotifier {
   final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
@@ -15,10 +15,14 @@ class SyncronizedData with ChangeNotifier {
   String _message = "";
 
   final dioAdapter = DioAdapter();
+  final UpdateDao _updateDao = UpdateDao();
   final ProductsDao _productsDao = ProductsDao();
   final ProductsDaoEspecials _productsEspecialsDao = ProductsDaoEspecials();
   final ProductsPaquetesDao _productsPaquetesDao = ProductsPaquetesDao();
-  final UpdateDao _updateDao = UpdateDao();
+  final TextFacturaDao _textFacturaDao = TextFacturaDao();
+  final DatosCajaDao _cajaDao = DatosCajaDao();
+  final DatosEmpresaDao _datosEmpresaDao = DatosEmpresaDao();
+  final DatosClienteDao _datosClienteDao = DatosClienteDao();
 
   bool get isLoading => _isLoading;
   String get message => _message;
@@ -46,14 +50,7 @@ class SyncronizedData with ChangeNotifier {
     // Obtener fecha actual en formato YYYY-MM-DD
     String fechaHoy = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-    // Verificar si ya hay una actualización con la fecha de hoy
-    UpdateModel? existingUpdate = await _updateDao.getInfoByDate(fechaHoy);
-
-    if (existingUpdate != null) {
-      _message = "Los datos ya están sincronizados hoy.";
-      _setLoading(false);
-      return;
-    }
+    if (!context.mounted) return;
 
     // Verificar conexión a internet
     final connectivityProvider = Provider.of<ConnectivityProvider>(
@@ -66,62 +63,32 @@ class SyncronizedData with ChangeNotifier {
       return;
     }
 
-    // URLs de descarga
+    // url de descarga
     const String url =
-        'https://prologics.co/app_planeta_pruebas/controlador/descarga_productos_nube.php';
-
-    const String urlProductosEspeciales =
-        'https://prologics.co/app_planeta_pruebas/controlador/descarga_productos_especiales_nube.php';
-
-    const String urlProductosPaquetes =
-        'https://prologics.co/app_planeta_pruebas/controlador/descarga_productos_paquetes_nube.php';
+        'https://prologics.co/app_planeta_pruebas/controlador/descarga_datos_nube.php';
 
     try {
-      final responseProductos = await dioAdapter.getRequest(url);
-      final responseEspecial = await dioAdapter.getRequest(
-        urlProductosEspeciales,
-      );
-      final responsePaquete = await dioAdapter.getRequest(urlProductosPaquetes);
+      final responseData = await dioAdapter.getRequest(url);
 
-      if (responseProductos.statusCode == 200 &&
-          responseEspecial.statusCode == 200 &&
-          responsePaquete.statusCode == 200) {
-        Map<String, dynamic> dataProductos =
-            responseProductos.data is String
-                ? jsonDecode(responseProductos.data)
-                : responseProductos.data;
+      if (responseData.statusCode == 200) {
+        Map<String, dynamic> data =
+            responseData.data is String
+                ? jsonDecode(responseData.data)
+                : responseData.data;
 
-        Map<String, dynamic> dataEspecial =
-            responseEspecial.data is String
-                ? jsonDecode(responseEspecial.data)
-                : responseEspecial.data;
+        List<dynamic> productList = data['productos'];
+        List<dynamic> especiaList = data['productos_especiales'];
+        List<dynamic> paqueteList = data['paquetes'];
+        List<dynamic> textoFacturaList = data['texto_factura'];
+        List<dynamic> datosCajaList = data['datos_caja'];
+        List<dynamic> datosEmpresaList = data['datos_empresa'];
+        List<dynamic> datosClienteList = data['datos_cliente'];
 
-        Map<String, dynamic> dataPaquetes =
-            responsePaquete.data is String
-                ? jsonDecode(responsePaquete.data)
-                : responsePaquete.data;
-
-        List<dynamic> productosList = dataProductos['productos'];
-        List<dynamic> especialList = dataEspecial["productos_especiales"];
-        List<dynamic> paqueteList = dataPaquetes["paquetes"];
+        //TODO: falta consultar las promociones
 
         await Future.wait([
-          insertData<ProductsEspecialsModel>(
-            especialList,
-            _productsEspecialsDao.insertProductsEspecials,
-            (item) => ProductsEspecialsModel(
-              id: int.parse(item['id']),
-              referencia: item['Referencia'],
-              descReferencia: item['Desc_Referencia'],
-              porcentajeDescuento: int.parse(item['Porcentaje_Descuento']),
-              precio: int.parse(item['Precio']),
-              acumula: item['Acumula'],
-              acumulaObsequio: item['Acumula_Obsequio'],
-              usuario: item['Usuario'],
-            ),
-          ),
           insertData<ProductsModel>(
-            productosList,
+            productList,
             _productsDao.insertProduct,
             (item) => ProductsModel(
               id: int.parse(item['id']),
@@ -134,6 +101,20 @@ class SyncronizedData with ChangeNotifier {
               autor: item['Autor'],
               selloEditorial: item['Sello_Editorial'],
               familia: int.parse(item['Familia']),
+            ),
+          ),
+          insertData<ProductsEspecialsModel>(
+            especiaList,
+            _productsEspecialsDao.insertProductsEspecials,
+            (item) => ProductsEspecialsModel(
+              id: int.parse(item['id']),
+              referencia: item['Referencia'],
+              descReferencia: item['Desc_Referencia'],
+              porcentajeDescuento: int.parse(item['Porcentaje_Descuento']),
+              precio: int.parse(item['Precio']),
+              acumula: item['Acumula'],
+              acumulaObsequio: item['Acumula_Obsequio'],
+              usuario: item['Usuario'],
             ),
           ),
           insertData<ProductsPaquetesModel>(
@@ -149,6 +130,58 @@ class SyncronizedData with ChangeNotifier {
               usuario: item['Usuario'],
             ),
           ),
+          insertData<TextFacturaModel>(
+            textoFacturaList,
+            _textFacturaDao.insertText,
+            (item) => TextFacturaModel(
+              id: int.parse(item['id']),
+              descripcion: item['descripcion'],
+            ),
+          ),
+          insertData<DatosCajaModel>(
+            datosCajaList,
+            _cajaDao.insertCaja,
+            (item) => DatosCajaModel(
+              codCaja: item['Cod_Caja'],
+              stand: item['Stand'],
+              numeroCaja: item['Numero_Caja'],
+              facturaInicio: item['Factura_Inicio'],
+              numeroResolucion: item['Numero_Resolucion'],
+              facturaActual: item['Factura_Actual'],
+              nickUsuario: item['Nick_Usuario'],
+              claveTecnica: item['Clave_Tecnica'],
+            ),
+          ),
+          insertData<DatosEmpresaModel>(
+            datosEmpresaList,
+            _datosEmpresaDao.insertEmpresa,
+            (item) => DatosEmpresaModel(
+              id: int.parse(item['Id']),
+              nombreEmpresa: item['Nombre_Empresa'],
+              nit: item['Nit'],
+              direccion: item['Direccion'],
+              telefono: item['Telefono'],
+              email: item['Email'],
+              logo: item['Logo'],
+            ),
+          ),
+          insertData<DatosClienteModel>(
+            datosClienteList,
+            _datosClienteDao.insertCliente,
+            (item) => DatosClienteModel(
+              clcecl: item['clcecl'],
+              clnmcl: item['clnmcl'],
+              clpacl: item['clpacl'],
+              clsacl: item['clsacl'],
+              clmail: item['clmail'],
+              cldire: item['cldire'],
+              clciud: item['clciud'],
+              cltele: item['cltele'],
+              clusua: item['clusua'],
+              cltipo: item['cltipo'],
+              clfecha: item['clfecha'],
+            ),
+          ),
         ]);
 
         final update = UpdateModel(fechaActualizacion: fechaHoy);
@@ -161,8 +194,6 @@ class SyncronizedData with ChangeNotifier {
     } catch (e) {
       _message = "Error en la conexión con el servidor.";
     }
-
-    _setLoading(false);
   }
 
   void _setLoading(bool value) {
