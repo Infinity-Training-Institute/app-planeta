@@ -1,21 +1,21 @@
-# App Planeta
+# app_planeta
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.7.2-blue?logo=flutter)
 ![Android](https://img.shields.io/badge/Android-Supported-green?logo=android)
 
 ## Descripción
 
-Aplicación móvil para facturar libros siguiendo reglas de descuento. Las reglas aplicadas son:
+**app_planeta** es una aplicación móvil diseñada para la facturación de libros, implementando reglas de descuento como:
 - **3x2**
 - **2x1**
 - **50% de descuento**
 - **Descuento por horas**
 
-La aplicación está diseñada para ser utilizada en dispositivos móviles POS para la gestión de facturas.
+La aplicación está diseñada para ser utilizada en un dispositivo móvil POS para la generación de facturas.
 
 ## Dependencias
 
-Este proyecto usa las siguientes dependencias:
+Las dependencias utilizadas en el proyecto son:
 
 ```yaml
 dependencies:
@@ -33,46 +33,48 @@ dependencies:
   shimmer: ^3.0.0
   sqflite: ^2.4.2
   permission_handler: ^11.0.1
-
-dev_dependencies:
-  flutter_test:
-    sdk: flutter
-  flutter_lints: ^5.0.0
-
-flutter:
-  uses-material-design: true
-  assets:
-    - assets/
 ```
 
 ## Instalación
 
-Sigue estos pasos para descargar y ejecutar la aplicación en tu entorno local:
+### 1. Clonar el repositorio
+```sh
+git clone https://github.com/tu_usuario/app_planeta.git
+cd app_planeta
+```
 
-1. Clona el repositorio:
+### 2. Instalar dependencias
+```sh
+flutter pub get
+```
+
+## Ejecución en un dispositivo físico o emulador
+
+### Opción 1: Emulador
+1. Abre **Android Studio** o **Visual Studio Code**.
+2. Inicia un emulador desde AVD Manager (**Android Studio**) o usa el comando:
    ```sh
-   git clone https://github.com/Infinity-Training-Institute/app-planeta
-   cd app_planeta
+   flutter emulators --launch nombre_del_emulador
    ```
-
-2. Instala las dependencias:
-   ```sh
-   flutter pub get
-   ```
-
-3. Ejecuta la aplicación en un emulador o dispositivo físico:
+3. Ejecuta la aplicación:
    ```sh
    flutter run
    ```
 
-## Configuración Adicional
+### Opción 2: Dispositivo físico (Android)
+1. Conecta un dispositivo físico con **Depuración USB** activada.
+2. Verifica que el dispositivo está detectado:
+   ```sh
+   flutter devices
+   ```
+3. Ejecuta la aplicación:
+   ```sh
+   flutter run
+   ```
 
-Si necesitas regenerar los íconos de la aplicación, usa:
-```sh
-flutter pub run flutter_launcher_icons:main
-```
+Si tienes problemas de conexión, revisa los permisos de depuración y asegurarte de que el teléfono tiene **Depuración USB** activada en las opciones de desarrollador.
 
 ---
 
-¡Listo! Ahora puedes comenzar a usar **App Planeta** 📚🚀.
+Ahora puedes empezar a desarrollar con **app_planeta** 🚀
 
