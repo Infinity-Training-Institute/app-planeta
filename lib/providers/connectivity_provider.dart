@@ -6,7 +6,7 @@ class ConnectivityProvider extends ChangeNotifier {
   final Connectivity _connectivity = Connectivity();
 
   ConnectivityProvider() {
-    _checkInitialConnection(); // Verifica el estado inicial
+    _checkInitialConnection();
     _connectivity.onConnectivityChanged.listen((connectivityList) {
       _connectivityStatus =
           connectivityList.isNotEmpty
@@ -17,8 +17,10 @@ class ConnectivityProvider extends ChangeNotifier {
   }
 
   Future<void> _checkInitialConnection() async {
-    final status = await _connectivity.checkConnectivity();
-    _connectivityStatus = status as ConnectivityResult;
+    final List<ConnectivityResult> statusList =
+        await _connectivity.checkConnectivity();
+    _connectivityStatus =
+        statusList.isNotEmpty ? statusList.first : ConnectivityResult.none;
     notifyListeners();
   }
 

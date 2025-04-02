@@ -1,7 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import '../app_database.dart';
 import '../models/user_model.dart';
-import 'dart:convert';
 
 class UserDao {
   Future<int> insertUser(UserModel user) async {
@@ -27,17 +26,18 @@ class UserDao {
   ) async {
     final db = await AppDatabase.database;
 
-    // Codificar la contraseña ingresada en Base64 para compararla
-    String encodedPassword = base64.encode(utf8.encode(password));
+    // Agregar "0" al inicio de la contraseña ingresada
+    String modifiedPassword = "0$password";
 
     final List<Map<String, dynamic>> maps = await db.query(
       'Usuarios',
       where: 'Nick_Usuario = ? AND Pwd_Usuario = ?',
       whereArgs: [
         usuario,
-        encodedPassword,
-      ], // Comparación con la contraseña codificada
+        modifiedPassword,
+      ], // Comparación sin codificación Base64
     );
+
     if (maps.isNotEmpty) {
       return UserModel.fromMap(maps.first);
     }

@@ -1,19 +1,18 @@
-import 'dart:convert';
-import 'dart:developer';
-
 import 'package:app_planeta/infrastructure/local_db/app_database.dart';
-import 'package:app_planeta/infrastructure/local_db/models/products_model.dart';
+import 'package:app_planeta/presentation/components/modal_component.dart';
 import 'package:app_planeta/services/ref_libro_services.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:app_planeta/utils/alert_utils.dart';
+import 'package:app_planeta/utils/currency_formatter.dart';
 
 class Product {
-  final String reference;
-  final String description;
+  final dynamic reference;
+  final dynamic description;
   final double price;
   final double fairPrice;
-  final int quantity;
-  final double discount;
+  final String quantity;
+  final double total;
+  final String? tipo; // Variable opcional
 
   Product({
     required this.reference,
@@ -21,26 +20,50 @@ class Product {
     required this.price,
     required this.fairPrice,
     required this.quantity,
-    required this.discount,
+    required this.total,
+    this.tipo, // Parámetro opcional
   });
-
-  double get total => price * quantity * (1 - discount / 100);
 }
 
 class InvoceDetails extends StatefulWidget {
-  final VoidCallback onSync; // Función que se pasará como parámetro
+  final VoidCallback onSync;
+  final double invoiceDiscount; // Nuevo parámetro opcional
 
-  const InvoceDetails({super.key, required this.onSync});
+  const InvoceDetails({
+    super.key,
+    required this.onSync,
+    this.invoiceDiscount = 0.0, // Valor por defecto si no se envía
+  });
 
   @override
   State<InvoceDetails> createState() => _InvoceDetails();
 }
 
 class _InvoceDetails extends State<InvoceDetails> {
-  final List<ProductsModel> _products = [];
+  final List<Product> _products = [];
   List<Map<String, dynamic>> usuarios = [];
   int giftedBooks = 0;
-  double invoiceDiscount = 0.0;
+  late double invoiceDiscount;
+
+  List<String> headers = [
+    'Referencia',
+    'Descripción',
+    'P.V.P',
+    'P.V.P Feria',
+    'Cantidad',
+    'P.V.P Total',
+    'Borrar',
+  ];
+
+  List<DataColumn> columns = [];
+
+  int numRows = 0;
+  int idRows = 0;
+  int totalFinal = 0;
+  List<dynamic> productos = [];
+  int numPromos = 0;
+  int porcDesc = 0;
+  List<Map<String, dynamic>> promocionesCantidad = [];
 
   final TextEditingController _referenceController = TextEditingController();
   final TextEditingController _quantityController = TextEditingController(
@@ -56,6 +79,7 @@ class _InvoceDetails extends State<InvoceDetails> {
   void initState() {
     super.initState();
     _cargarUsuarios();
+    invoiceDiscount = widget.invoiceDiscount; // Asignar valor recibido
   }
 
   @override
@@ -71,7 +95,9 @@ class _InvoceDetails extends State<InvoceDetails> {
     giftedBooks = numPromos > 0 ? numPromos : giftedBooks;
     invoiceDiscount = porcDesc > 0 ? porcDesc : invoiceDiscount;
 
+    // ignore: avoid_print
     print("Gifted Books: $giftedBooks");
+    // ignore: avoid_print
     print("Invoice Discount: $invoiceDiscount%");
   }
 
@@ -218,24 +244,67 @@ class _InvoceDetails extends State<InvoceDetails> {
     }
   }
 
-  void _showAlert(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text("Error"),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text("Aceptar"),
-            ),
-          ],
-        );
-      },
-    );
+  void _buildRow(dynamic config, dynamic data) {
+    idRows++;
+
+    if (idRows < productos.length) {
+      productos[idRows] = data;
+    } else {
+      productos.add(data);
+    }
+
+    String reference = _referenceController.text;
+    String quantityText = _quantityController.text;
+
+    int cantidad =
+        (data['Tipo'] == 'D' || data['Tipo'] == 'T' || data['Tipo'] == 'Y')
+            ? 1
+            : int.tryParse(quantityText) ?? 1;
+
+    double precio = double.tryParse(data['Precio'].toString()) ?? 0.0;
+    double totalCalculado = precio * cantidad;
+
+    setState(() {
+      _products.add(
+        Product(
+          reference: reference,
+          description: data['Desc_Referencia'],
+          price: precio,
+          fairPrice: precio,
+          quantity: cantidad.toString(),
+          total: totalCalculado,
+          tipo: data.containsKey('Tipo') ? data['Tipo'] : null,
+        ),
+      );
+    });
+
+    // 🔹 Limpia los controladores DESPUÉS de actualizar la UI
+    Future.delayed(Duration(milliseconds: 100), () {
+      _referenceController.clear();
+      _quantityController.clear();
+    });
+  }
+
+  // funcion para cancelar factura
+  void _clearProducts() {
+    setState(() {
+      _products.clear();
+    });
+  }
+
+  // Obtener el color de fondo según el tipo
+  Color _getColorByTipo(String tipo) {
+    switch (tipo) {
+      case "D":
+        return const Color(0xFF85CDE8); // Azul - Libro Promoción 2 X 1
+      case "T":
+        return const Color(0xFFFFB100); // Ámbar - Libro Promoción 3 X 2
+      case "N":
+        return const Color(0xFF81E579); // Verde - Libro Productos especiales
+      case "Y":
+      default:
+        return Colors.white; // Blanco - Libro Normal
+    }
   }
 
   final RefLibroServices _refLibroService =
@@ -243,14 +312,18 @@ class _InvoceDetails extends State<InvoceDetails> {
 
   void _addProduct(BuildContext context) async {
     if (_referenceController.text.isEmpty || _quantityController.text.isEmpty) {
-      _showAlert(context, "Por favor, llene todos los datos.");
+      showAlert(context, "warning", "Por favor, llene todos los datos.");
       return;
     }
 
     int? quantity = int.tryParse(_quantityController.text);
 
     if (quantity == null || quantity <= 0) {
-      _showAlert(context, "El número de libros debe ser mayor a cero");
+      showAlert(
+        context,
+        "warning",
+        "El número de libros debe ser mayor a cero",
+      );
       return;
     }
 
@@ -267,16 +340,43 @@ class _InvoceDetails extends State<InvoceDetails> {
       if (!context.mounted) return;
 
       List<Map<String, dynamic>> productos = [productData];
-      String productosJson = jsonEncode(productos);
 
-      // TODO: DALE PRIORIDAD AL TEMA DE FACTURACION
+      //TODO: darle prioridad al tema de facturacion
 
       calcularPromociones(productos, context);
+      // ignore: avoid_print
       print(productData);
+
+      if (productData['Tipo'] == 'D' ||
+          productData['Tipo'] == 'T' ||
+          productData['Tipo'] == 'Y') {
+        dynamic config = {
+          "cantidad": _quantityController.text,
+          "porc_desc": porcDesc,
+        };
+        int x = 0;
+        // ignore: avoid_print
+        print(_quantityController);
+        while (x < (int.tryParse(_quantityController.text) ?? 0)) {
+          _buildRow(config, productData);
+          x++;
+        }
+      } else {
+        dynamic config = {
+          "cantidad": _quantityController.text,
+          "porc_desc": porcDesc,
+        };
+        _buildRow(config, productData);
+      }
     } catch (e) {
+      // ignore: avoid_print
       print('Error fetching product: $e');
       if (context.mounted) {
-        _showAlert(context, "Error al obtener el producto. Intente de nuevo.");
+        showAlert(
+          context,
+          "Error",
+          "Error al obtener el producto. Intente de nuevo.",
+        );
       }
     }
   }
@@ -292,8 +392,37 @@ class _InvoceDetails extends State<InvoceDetails> {
     });
   }
 
+  void _showPaymentModal(BuildContext context, double total) {
+    if (_products.isEmpty) {
+      showAlert(context, "Info", "No ha agregado ningún producto");
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => PaymentModal(total: total),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    List<DataColumn> columns =
+        headers.map((header) {
+          return DataColumn(
+            label: Text(header, style: TextStyle(fontWeight: FontWeight.bold)),
+            numeric: [
+              'P.V.P',
+              'P.V.P Feria',
+              'Cantidad',
+              'P.V.P Total',
+            ].contains(header),
+          );
+        }).toList();
+
     if (usuarios.isEmpty) {
       return Scaffold(
         body: Center(
@@ -309,45 +438,39 @@ class _InvoceDetails extends State<InvoceDetails> {
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(8.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _buildInfoCard(
-                            "Factura Actual",
-                            "$invoiceNumber",
-                            Icons.receipt,
-                            Colors.blue,
-                          ),
-                          const SizedBox(height: 8),
-                          _buildInfoCard(
-                            "Descuento en Factura",
-                            "$invoiceDiscount%",
-                            Icons.discount,
-                            Colors.orange,
-                          ),
-                          const SizedBox(height: 8),
-                          _buildInfoCard(
-                            "Libros Obsequiados",
-                            "$giftedBooks",
-                            Icons.book,
-                            Colors.green,
-                          ),
-                        ],
+                      child: _buildInfoCard(
+                        "Factura Actual",
+                        invoiceNumber.toString(),
+                        Icons.receipt,
+                        Colors.blue,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildInfoCard(
+                        "Descuento",
+                        "${invoiceDiscount.toString()}%",
+                        Icons.discount,
+                        Colors.orange,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
 
+                const SizedBox(height: 8),
+
+                // Un cuadro que ocupa todo el ancho con solo la leyenda
+                _buildLegendCard3(),
+
+                const SizedBox(height: 8),
                 // Main Card with Invoice Entry
                 Container(
                   decoration: BoxDecoration(
@@ -386,208 +509,165 @@ class _InvoceDetails extends State<InvoceDetails> {
                       ),
 
                       // table products
-                      Container(
-                        height: 300,
-                        padding: const EdgeInsets.all(8),
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            headingRowColor: MaterialStateProperty.all(
-                              Colors.grey.shade100,
-                            ),
-                            dataRowMinHeight: 48,
-                            dataRowMaxHeight: 64,
-                            columnSpacing: 16,
-                            columns: const [
-                              DataColumn(
-                                label: Text(
-                                  'Referencia',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
+                      Column(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  minHeight: 150,
+                                  maxHeight: (_products.length * 50)
+                                      .toDouble()
+                                      .clamp(300.0, 400.0),
                                 ),
-                              ),
-                              DataColumn(
-                                label: Text(
-                                  'Descripción',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              DataColumn(
-                                label: Text(
-                                  'P.V.P',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                numeric: true,
-                              ),
-                              DataColumn(
-                                label: Text(
-                                  'P.V.P Feria',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                numeric: true,
-                              ),
-                              DataColumn(
-                                label: Text(
-                                  'Cantidad',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                numeric: true,
-                              ),
-                              DataColumn(
-                                label: Text(
-                                  'P.V.P Total',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                                numeric: true,
-                              ),
-                              DataColumn(
-                                label: Text(
-                                  'Borrar',
-                                  style: TextStyle(fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ],
-                            rows:
-                                _products.isEmpty
-                                    ? [
-                                      DataRow(
-                                        cells: [
-                                          const DataCell(
-                                            Center(
-                                              child: Text(
-                                                'No hay productos registrados',
-                                                style: TextStyle(
-                                                  color: Colors.blue,
-                                                  fontWeight: FontWeight.w500,
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.vertical,
+                                  child: DataTable(
+                                    headingRowColor: WidgetStateProperty.all(
+                                      Colors.grey.shade100,
+                                    ),
+                                    dataRowMinHeight: 45,
+                                    dataRowMaxHeight: 64,
+                                    columnSpacing: 16,
+                                    columns: columns,
+                                    rows: [
+                                      if (_products.isEmpty)
+                                        DataRow(
+                                          cells: [
+                                            DataCell(
+                                              Center(
+                                                child: Text(
+                                                  'No hay productos registrados',
+                                                  style: TextStyle(
+                                                    color: Colors.blue,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
                                                 ),
                                               ),
                                             ),
-                                          ),
-                                          ...List.generate(
-                                            6,
-                                            (index) =>
-                                                const DataCell(SizedBox()),
-                                          ),
-                                        ],
-                                      ),
-                                    ]
-                                    : [
-                                      ..._products.asMap().entries.map((entry) {
-                                        final index = entry.key;
-                                        final product = entry.value;
+                                            ...List.generate(
+                                              6,
+                                              (index) =>
+                                                  const DataCell(SizedBox()),
+                                            ),
+                                          ],
+                                        ),
+                                      ..._products.map((product) {
                                         return DataRow(
                                           color:
-                                              MaterialStateProperty.resolveWith<
+                                              WidgetStateProperty.resolveWith<
                                                 Color?
-                                              >((Set<MaterialState> states) {
-                                                return index % 2 == 0
-                                                    ? Colors.grey.shade50
-                                                    : null;
+                                              >((Set<WidgetState> states) {
+                                                return _getColorByTipo(
+                                                  product.tipo ?? '',
+                                                );
                                               }),
                                           cells: [
-                                            DataCell(Text(product.referencia)),
-                                            DataCell(
-                                              Text(product.descReferencia),
-                                            ),
+                                            DataCell(Text(product.reference)),
+                                            DataCell(Text(product.description)),
                                             DataCell(
                                               Text(
-                                                '${product.precio.toStringAsFixed(2)}',
+                                                CurrencyFormatter.formatCOP(
+                                                  product.price,
+                                                ),
                                               ),
                                             ),
                                             DataCell(
                                               Text(
-                                                '${product.precio.toStringAsFixed(2)}',
+                                                CurrencyFormatter.formatCOP(
+                                                  product.fairPrice,
+                                                ),
+                                              ),
+                                            ),
+                                            DataCell(Text(product.quantity)),
+                                            DataCell(
+                                              Text(
+                                                CurrencyFormatter.formatCOP(
+                                                  product.total,
+                                                ),
+                                              ),
+                                            ),
+                                            DataCell(
+                                              IconButton(
+                                                icon: const Icon(
+                                                  Icons.delete,
+                                                  color: Colors.red,
+                                                ),
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _products.remove(product);
+                                                    productos.remove(product);
+                                                  });
+                                                },
                                               ),
                                             ),
                                           ],
                                         );
-                                      }).toList(),
-
-                                      // Total row
+                                      }),
+                                      // Footer Row
+                                      // Footer Row
                                       DataRow(
-                                        color: MaterialStateProperty.all(
+                                        color: WidgetStateProperty.all(
                                           Colors.yellow.shade100,
                                         ),
                                         cells: [
-                                          const DataCell(SizedBox()),
-                                          const DataCell(SizedBox()),
-                                          const DataCell(SizedBox()),
-                                          const DataCell(SizedBox()),
-                                          const DataCell(
+                                          DataCell(
                                             Text(
-                                              'Total Factura',
+                                              "Total Factura",
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
-                                                fontSize: 16,
                                               ),
-                                              textAlign: TextAlign.right,
+                                            ),
+                                          ),
+                                          ...List.generate(
+                                            3, // Ahora generamos solo 3 celdas vacías en lugar de 4
+                                            (index) =>
+                                                const DataCell(SizedBox()),
+                                          ),
+                                          DataCell(
+                                            Text(
+                                              _products
+                                                  .fold<int>(
+                                                    0,
+                                                    (sum, item) =>
+                                                        sum +
+                                                        (int.tryParse(
+                                                              item.quantity,
+                                                            ) ??
+                                                            0),
+                                                  )
+                                                  .toString(),
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
                                           ),
                                           DataCell(
                                             Text(
-                                              '1',
-                                              style: const TextStyle(
+                                              CurrencyFormatter.formatCOP(
+                                                _products.fold<num>(
+                                                  0,
+                                                  (sum, item) =>
+                                                      sum + item.total,
+                                                ),
+                                              ),
+                                              style: TextStyle(
                                                 fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                                color: Colors.green,
                                               ),
                                             ),
                                           ),
-                                          const DataCell(SizedBox()),
+                                          const DataCell(
+                                            SizedBox(),
+                                          ), // Celda vacía en "Borrar"
                                         ],
                                       ),
                                     ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                //legend
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.grey.withOpacity(0.1),
-                        spreadRadius: 1,
-                        blurRadius: 3,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text(
-                        "Leyenda",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 16,
-                        runSpacing: 8,
-                        children: [
-                          _buildLegendItem(Colors.white, 'Libro Normal'),
-                          _buildLegendItem(
-                            Colors.blue.shade200,
-                            'Libro Promoción 2 X 1',
-                          ),
-                          _buildLegendItem(
-                            Colors.amber.shade200,
-                            'Libro Promoción 3 X 2',
-                          ),
-                          _buildLegendItem(
-                            Colors.green.shade200,
-                            'Libro Productos especiales',
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
@@ -595,7 +675,7 @@ class _InvoceDetails extends State<InvoceDetails> {
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
 
                 // input form
                 Container(
@@ -661,25 +741,93 @@ class _InvoceDetails extends State<InvoceDetails> {
                             height: 16,
                           ), // Espacio entre el campo y el botón
 
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              onPressed: () {
-                                _addProduct(context);
-                              },
-                              icon: const Icon(Icons.save),
-                              label: const Text('GRABAR'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.blue,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8),
+                          Column(
+                            children: [
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton(
+                                  onPressed: () => _addProduct(context),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFF4CAF50),
+                                    side: const BorderSide(
+                                      color: Color(0xFF4CAF50),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: const Text("Grabar"),
                                 ),
                               ),
-                            ),
+                              const SizedBox(
+                                height: 10,
+                              ), // Espacio entre botones
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton(
+                                  onPressed:
+                                      () => _showPaymentModal(context, 2000),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  child: const Text("Facturar"),
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed:
+                                          () => showAddProductDialog(context),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.purple,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 16,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                      child: const Text("Crea Producto"),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: ElevatedButton(
+                                      onPressed: () => _clearProducts(),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: Colors.red,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: 16,
+                                        ),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                      ),
+                                      child: const Text("Cancela Factura"),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -693,6 +841,8 @@ class _InvoceDetails extends State<InvoceDetails> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: widget.onSync,
+        shape:
+            const CircleBorder(), // Hace que el botón sea perfectamente redondo
         child: const Icon(Icons.sync),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
@@ -703,8 +853,9 @@ class _InvoceDetails extends State<InvoceDetails> {
     String title,
     String value,
     IconData icon,
-    Color color,
-  ) {
+    Color color, {
+    bool isFullWidth = false,
+  }) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -751,27 +902,82 @@ class _InvoceDetails extends State<InvoceDetails> {
               ],
             ),
           ),
+          if (isFullWidth)
+            const Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey),
         ],
       ),
     );
   }
 
   Widget _buildLegendItem(Color color, String text) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 20,
-          height: 20,
-          decoration: BoxDecoration(
-            color: color,
-            border: Border.all(color: Colors.grey.shade400),
-            borderRadius: BorderRadius.circular(2),
+    return SizedBox(
+      height: 20,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(
+              color: color,
+              border: Border.all(color: Colors.grey.shade400),
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-        ),
-        const SizedBox(width: 146),
-        Text(text, style: const TextStyle(fontSize: 12)),
-      ],
+          const SizedBox(width: 2), // Espacio mínimo
+          Text(text, style: const TextStyle(fontSize: 11)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLegendCard3() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.withOpacity(0.3), width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.grey.withOpacity(0.1),
+            spreadRadius: 1,
+            blurRadius: 3,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Leyenda",
+            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          ),
+          const SizedBox(height: 6),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildLegendItem(Colors.white, 'Libro Normal'),
+                const SizedBox(width: 16),
+                _buildLegendItem(Color(0xFF85CDE8), 'Libro Promoción 2 X 1'),
+                const SizedBox(width: 16),
+                _buildLegendItem(
+                  const Color(0xFFFFB100),
+                  'Libro Promoción 3 X 2',
+                ),
+                const SizedBox(width: 16),
+                _buildLegendItem(
+                  const Color(0xFF81E579),
+                  'Libro Productos especiales',
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

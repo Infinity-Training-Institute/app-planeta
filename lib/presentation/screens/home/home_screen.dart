@@ -3,6 +3,7 @@ import 'package:app_planeta/infrastructure/local_db/models/index.dart';
 import 'package:app_planeta/presentation/components/invoce_details.dart';
 import 'package:app_planeta/presentation/components/invoice_component.dart';
 import 'package:app_planeta/providers/connectivity_provider.dart';
+import 'package:app_planeta/utils/alert_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -37,7 +38,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _syncData(BuildContext context) async {
-    if (!context.mounted) return;
     // Verificar conexión a internet
     final connectivityProvider = Provider.of<ConnectivityProvider>(
       context,
@@ -55,11 +55,18 @@ class _HomeScreenState extends State<HomeScreen> {
       if (context.mounted) {
         Navigator.pop(context);
         _loadProducts();
-        _showAlert(
+        showAlert(
           context,
+          "Exito",
           Provider.of<SyncronizedData>(context, listen: false).message,
         );
       }
+    } else {
+      showAlert(
+        context,
+        "Error",
+        "No se detecta conexión a internet. Conéctese a una red para descargar los datos.",
+      );
     }
     return;
   }
@@ -89,23 +96,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text("Sincronizando datos..."),
               ],
             ),
-          ),
-    );
-  }
-
-  void _showAlert(BuildContext context, String message) {
-    showDialog(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: const Text("Sincronización"),
-            content: Text(message),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("OK"),
-              ),
-            ],
           ),
     );
   }

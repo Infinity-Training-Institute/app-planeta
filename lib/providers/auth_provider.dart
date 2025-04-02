@@ -75,13 +75,17 @@ class AuthProvider with ChangeNotifier {
         final userData =
             responseUser['usuario'][0]; // Ahora sí accedemos a usuario
 
+        String decodedPwd = utf8.decode(base64.decode(userData['Pwd_Usuario']));
+
+        print(decodedPwd);
+
         // Crear instancia de UserModel con los datos extraídos
         final nuevoUsuario = UserModel(
           codUsuario: int.parse(userData['Cod_Usuario']), // Convertir a int
           nombreUsuario: userData['Nombre_Usuario'],
           apellidoUsuario: userData['Apellido_Usuario'],
           nickUsuario: userData['Nick_Usuario'],
-          pwdUsuario: userData['Pwd_Usuario'],
+          pwdUsuario: decodedPwd,
           tipoUsuario: int.parse(userData['Tipo_Usuario']),
           estadoUsuario: int.parse(userData['Estado_Usuario']),
           serieImpUsuario: userData['Serie_Imp_Usuario'] ?? '',
