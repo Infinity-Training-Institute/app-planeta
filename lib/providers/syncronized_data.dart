@@ -23,6 +23,9 @@ class SyncronizedData with ChangeNotifier {
   final DatosCajaDao _cajaDao = DatosCajaDao();
   final DatosEmpresaDao _datosEmpresaDao = DatosEmpresaDao();
   final DatosClienteDao _datosClienteDao = DatosClienteDao();
+  final PromocionesDao _promocionesDao = PromocionesDao();
+  final PromocionHoraDao _promocionHoraDao = PromocionHoraDao();
+  final PromocionCantidadDao _promocionCantidadDao = PromocionCantidadDao();
 
   bool get isLoading => _isLoading;
   String get message => _message;
@@ -35,10 +38,9 @@ class SyncronizedData with ChangeNotifier {
     for (var item in dataList) {
       try {
         final model = modelFromJson(item);
-        print("insertando $model");
         await insertFunction(model);
       } catch (e) {
-        print("Error insertando datos: \$e");
+        print("Error insertando datos: $e");
       }
     }
   }
@@ -83,10 +85,119 @@ class SyncronizedData with ChangeNotifier {
         List<dynamic> datosCajaList = data['datos_caja'];
         List<dynamic> datosEmpresaList = data['datos_empresa'];
         List<dynamic> datosClienteList = data['datos_cliente'];
+        List<dynamic> datosPromocionList = data['datos_promociones'];
+        List<dynamic> datosPromocionHorasList = data['datos_promocion_horas'];
+        List<dynamic> datosPromocionCantidadList =
+            data['datos_promocion_cantidad'];
 
         //TODO: falta consultar las promociones
-
         await Future.wait([
+          insertData<PromocionesModel>(
+            datosPromocionList,
+            _promocionesDao.insertPromocion,
+            (item) => PromocionesModel(
+              codPromocion: int.tryParse(item['Cod_Promocion'].toString()),
+              fechaPromocion: item['Fecha_Promocion'],
+              horaDesde: item['Hora_Desde'],
+              horaHasta: item['Hora_Hasta'],
+              minutoHasta: item['Minuto_Hasta'],
+              usuario: item['Usuario'],
+              tipoPromocion: item['Tipo_Promocion'],
+            ),
+          ),
+          insertData<PromocionHorasModel>(
+            datosPromocionHorasList,
+            _promocionHoraDao.inserPromocionHora,
+            (item) => PromocionHorasModel(
+              codPromocion: int.tryParse(item['Cod_Promocion'].toString()),
+              fechaPromocion: item['Fecha_Promocion'],
+              horaDesde: item['Hora_Desde'],
+              minutoDesde: item['Minuto_Desde'],
+              horaHasta: item['Hora_Hasta'],
+              minutoHasta: item['Minuto_Hasta'],
+              descuentoPromocion:
+                  int.tryParse(
+                    item['Descuento_Promocion'].toString(),
+                  )?.toString(),
+              usuario: item['Usuario'],
+            ),
+          ),
+          insertData<PromocionCantidadModel>(
+            datosPromocionCantidadList,
+            _promocionCantidadDao.insertPromocionCantidad,
+            (item) => PromocionCantidadModel(
+              codPromocion: int.tryParse(item['Cod_Promocion'].toString()),
+              productosDesde: int.tryParse(item['Productos_Desde'].toString()),
+              productosHasta: int.tryParse(item['Productos_Hasta'].toString()),
+              porcentajeDescuento:
+                  int.tryParse(
+                    item['Porcentaje_Descuento'].toString(),
+                  )?.toString(),
+              obsequio: item['Obsequio'],
+              usuario: item['Usuario'],
+            ),
+          ),
+          insertData<TextFacturaModel>(
+            textoFacturaList,
+            _textFacturaDao.insertText,
+            (item) => TextFacturaModel(
+              id: int.parse(item['id']),
+              descripcion: item['descripcion'],
+            ),
+          ),
+          insertData<DatosCajaModel>(
+            datosCajaList,
+            _cajaDao.insertCaja,
+            (item) => DatosCajaModel(
+              codCaja:
+                  item['Cod_Caja'] != null
+                      ? int.tryParse(item['Cod_Caja'].toString())
+                      : null,
+              stand: item['Stand'],
+              numeroCaja: item['Numero_Caja'],
+              facturaInicio: item['Factura_Inicio'],
+              numeroResolucion: item['Numero_Resolucion'],
+              facturaActual: item['Factura_Actual'],
+              nickUsuario: item['Nick_Usuario'],
+              claveTecnica: item['Clave_Tecnica'],
+            ),
+          ),
+          insertData<DatosEmpresaModel>(
+            datosEmpresaList,
+            _datosEmpresaDao.insertEmpresa,
+            (item) => DatosEmpresaModel(
+              id:
+                  item['Id'] != null
+                      ? int.tryParse(item['Id'].toString())
+                      : null,
+              nombreEmpresa: item['Nombre_Empresa'],
+              nit: item['Nit'],
+              direccion: item['Direccion'],
+              telefono: item['Telefono'],
+              email: item['Email'],
+              logo:
+                  item['Logo'] != null
+                      ? int.tryParse(item['Logo'].toString()) ?? 0
+                      : 0,
+            ),
+          ),
+          insertData<DatosClienteModel>(
+            datosClienteList,
+            _datosClienteDao.insertCliente,
+            (item) => DatosClienteModel(
+              clcecl: item['clcecl'],
+              clnmcl: item['clnmcl'],
+              clpacl: item['clpacl'],
+              clsacl: item['clsacl'],
+              clmail: item['clmail'],
+              cldire: item['cldire'],
+              clciud: item['clciud'],
+              cltele: item['cltele'],
+              clusua: item['clusua'],
+              cltipo: item['cltipo'],
+              clfecha: item['clfecha'],
+            ),
+          ),
           insertData<ProductsModel>(
             productList,
             _productsDao.insertProduct,
@@ -128,58 +239,6 @@ class SyncronizedData with ChangeNotifier {
               descReferencia: item['Descripcion_Referencia'],
               precio: item['Precio'],
               usuario: item['Usuario'],
-            ),
-          ),
-          insertData<TextFacturaModel>(
-            textoFacturaList,
-            _textFacturaDao.insertText,
-            (item) => TextFacturaModel(
-              id: int.parse(item['id']),
-              descripcion: item['descripcion'],
-            ),
-          ),
-          insertData<DatosCajaModel>(
-            datosCajaList,
-            _cajaDao.insertCaja,
-            (item) => DatosCajaModel(
-              codCaja: item['Cod_Caja'],
-              stand: item['Stand'],
-              numeroCaja: item['Numero_Caja'],
-              facturaInicio: item['Factura_Inicio'],
-              numeroResolucion: item['Numero_Resolucion'],
-              facturaActual: item['Factura_Actual'],
-              nickUsuario: item['Nick_Usuario'],
-              claveTecnica: item['Clave_Tecnica'],
-            ),
-          ),
-          insertData<DatosEmpresaModel>(
-            datosEmpresaList,
-            _datosEmpresaDao.insertEmpresa,
-            (item) => DatosEmpresaModel(
-              id: int.parse(item['Id']),
-              nombreEmpresa: item['Nombre_Empresa'],
-              nit: item['Nit'],
-              direccion: item['Direccion'],
-              telefono: item['Telefono'],
-              email: item['Email'],
-              logo: item['Logo'],
-            ),
-          ),
-          insertData<DatosClienteModel>(
-            datosClienteList,
-            _datosClienteDao.insertCliente,
-            (item) => DatosClienteModel(
-              clcecl: item['clcecl'],
-              clnmcl: item['clnmcl'],
-              clpacl: item['clpacl'],
-              clsacl: item['clsacl'],
-              clmail: item['clmail'],
-              cldire: item['cldire'],
-              clciud: item['clciud'],
-              cltele: item['cltele'],
-              clusua: item['clusua'],
-              cltipo: item['cltipo'],
-              clfecha: item['clfecha'],
             ),
           ),
         ]);

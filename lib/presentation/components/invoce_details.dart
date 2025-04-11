@@ -1,5 +1,7 @@
 import 'package:app_planeta/infrastructure/local_db/app_database.dart';
+import 'package:app_planeta/presentation/components/ean_scanner_component.dart';
 import 'package:app_planeta/presentation/components/modal_component.dart';
+import 'package:app_planeta/services/promocion_cantidad_services.dart';
 import 'package:app_planeta/services/ref_libro_services.dart';
 import 'package:flutter/material.dart';
 import 'package:app_planeta/utils/alert_utils.dart';
@@ -8,11 +10,12 @@ import 'package:app_planeta/utils/currency_formatter.dart';
 class Product {
   final dynamic reference;
   final dynamic description;
-  final double price;
-  final double fairPrice;
+  double price;
+  double fairPrice;
   final String quantity;
-  final double total;
-  final String? tipo; // Variable opcional
+  double total;
+  final String? tipo;
+  final int? porcentajeDescuento;
 
   Product({
     required this.reference,
@@ -21,8 +24,45 @@ class Product {
     required this.fairPrice,
     required this.quantity,
     required this.total,
-    this.tipo, // Parámetro opcional
+    this.tipo,
+    this.porcentajeDescuento,
   });
+
+  // Agregamos el método copyWith para actualizar solo un campo sin reescribir todo
+  Product copyWith({
+    dynamic reference,
+    dynamic description,
+    double? price,
+    double? fairPrice,
+    String? quantity,
+    double? total,
+    String? tipo,
+  }) {
+    return Product(
+      reference: reference ?? this.reference,
+      description: description ?? this.description,
+      price: price ?? this.price,
+      fairPrice: fairPrice ?? this.fairPrice,
+      quantity: quantity ?? this.quantity,
+      total: total ?? this.total,
+      tipo: tipo ?? this.tipo,
+      porcentajeDescuento: porcentajeDescuento ?? this.porcentajeDescuento,
+    );
+  }
+
+  // Método clone para duplicar productos
+  factory Product.clone(Product original) {
+    return Product(
+      reference: original.reference,
+      description: original.description,
+      price: original.price,
+      fairPrice: original.fairPrice,
+      quantity: original.quantity,
+      total: original.total,
+      tipo: original.tipo,
+      porcentajeDescuento: original.porcentajeDescuento ?? 0,
+    );
+  }
 }
 
 class InvoceDetails extends StatefulWidget {
@@ -40,7 +80,7 @@ class InvoceDetails extends StatefulWidget {
 }
 
 class _InvoceDetails extends State<InvoceDetails> {
-  final List<Product> _products = [];
+  List<Product> _products = [];
   List<Map<String, dynamic>> usuarios = [];
   int giftedBooks = 0;
   late double invoiceDiscount;
@@ -59,7 +99,7 @@ class _InvoceDetails extends State<InvoceDetails> {
 
   int numRows = 0;
   int idRows = 0;
-  int totalFinal = 0;
+  dynamic totalFinal = 0;
   List<dynamic> productos = [];
   int numPromos = 0;
   int porcDesc = 0;
@@ -73,6 +113,7 @@ class _InvoceDetails extends State<InvoceDetails> {
     text: "0",
   );
 
+  final FocusNode _referenceFocusNode = FocusNode();
   bool isLoading = true;
 
   @override
@@ -90,158 +131,207 @@ class _InvoceDetails extends State<InvoceDetails> {
     super.dispose();
   }
 
-  // Función para mostrar información de promociones en la interfaz
-  void showPromo(int numPromos, double porcDesc) {
-    giftedBooks = numPromos > 0 ? numPromos : giftedBooks;
-    invoiceDiscount = porcDesc > 0 ? porcDesc : invoiceDiscount;
+  void _scanEAN13() async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const EanScannerComponent()),
+    );
 
-    // ignore: avoid_print
-    print("Gifted Books: $giftedBooks");
-    // ignore: avoid_print
-    print("Invoice Discount: $invoiceDiscount%");
+    if (result != null && result is String) {
+      setState(() {
+        _referenceController.text = result;
+      });
+      print('Código escaneado: $result');
+    }
   }
 
-  void calcularPromociones(
-    List<Map<String, dynamic>> productos,
-    BuildContext context,
-  ) {
-    List<dynamic> n = []; // productos with class "N"
-    List<dynamic> s = []; // productos with class "S"
-    List<dynamic> d = []; // productos with class "D"
-    List<dynamic> t = []; // productos with class "T"
-    List<dynamic> y = []; // productos with class "Y"
+  void calcularPromociones() async {
+    Product? _oldFreeProductoT;
+    Product? _oldDiscountProductoT;
 
-    // This would be equivalent to getElementsByClassName in JS
-    for (int i = 0; i < productos.length; i++) {
-      String tipo = productos[i]['Tipo'] ?? '';
-      print(tipo);
-      if (tipo == 'N') n.add({'id': 'row$i', 'index': i});
-      if (tipo == 'S') s.add({'id': 'row$i', 'index': i});
-      if (tipo == 'D') d.add({'id': 'row$i', 'index': i});
-      if (tipo == 'T') t.add({'id': 'row$i', 'index': i});
-      if (tipo == 'Y') y.add({'id': 'row$i', 'index': i});
+    // 1. Obtener la promoción desde el servicio
+    final promocionesCantidad =
+        await PromocionCantidadService().fetchPromocionCantidad();
+    final promo = promocionesCantidad.firstWhere(
+      (p) => p['Cod_Promocion'] != null,
+      orElse: () => {},
+    );
+    if (promo.isEmpty) return;
+
+    final double porcentajeDescuento =
+        (promo['Porcentaje_Descuento'] ?? 0).toDouble();
+    final int desde = int.tryParse(promo['Productos_Desde'].toString()) ?? 0;
+    final int hasta = int.tryParse(promo['Productos_Hasta'].toString()) ?? 0;
+
+    // 2. Separar productos por tipo.
+    final List<Product> tipoT = _products.where((p) => p.tipo == 'T').toList();
+    final List<Product> tipoN = _products.where((p) => p.tipo == 'N').toList();
+    final List<Product> tipoS = _products.where((p) => p.tipo == 'S').toList();
+
+    // 3. Capturar el estado previo de los productos T que estaban gratis.
+    final List<Product> prevFreeT =
+        tipoT.where((p) => p.fairPrice == 0).toList();
+
+    // 4. Resetear precios y totales para todos los productos.
+    for (var p in _products) {
+      p.fairPrice = p.price;
+      final int cantidad = int.tryParse(p.quantity) ?? 1;
+      p.total = p.fairPrice * cantidad;
     }
 
-    print(t);
+    // 5. Procesar productos tipo T según la cantidad.
+    if (tipoT.length == 3) {
+      List<Product> ordenados = List.from(tipoT);
+      ordenados.sort((a, b) => a.price.compareTo(b.price));
+      Product productoMasBarato = ordenados.first;
 
-    List<Map<String, dynamic>> valores = [];
-    List<Map<String, dynamic>> val_res = [];
-    List<Map<String, dynamic>> valores2 = [];
-    List<Map<String, dynamic>> valores3 = [];
-    List<Map<String, dynamic>> valores4 = [];
-    List<Map<String, dynamic>> valores5 = [];
-    List<int> indices = [];
-
-    int num_promos = 0;
-    int num_promos_a = 0;
-    int num_promos_2 = 0;
-    int num_promos_3 = 0;
-    int num_promos_2a = 0;
-    int cant_t = 0;
-    int cant_s = 0;
-    int cant_y = 0;
-    int cant_d = 0;
-    int cant_n = 0;
-    int cant_g = 0;
-
-    String getNumber(String str) {
-      String number = "";
-      while (RegExp(r'\d').hasMatch(str)) {
-        int index = str.indexOf(RegExp(r'\d'));
-        number += str[index];
-        str = str.replaceFirst(RegExp(r'\d'), '\$');
-      }
-      return number;
-    }
-
-    //Suma las cantidades que hay del segundo con el 50 (Azul)
-    //todo: aqui va el codigo
-
-    //Todo: aqui va el codigo de y
-
-    //todo: aqui va el codigo de t
-    if (t.isNotEmpty) {
-      //Suma las cantidades que hay del 3x2 (Naranja)
-      for (int i = 0; i < t.length; i++) {
-        String idT = t[i]['id'];
-        int indice =
-            int.tryParse(getNumber(idT)) ??
-            0; // Convierte el valor a int de forma segura
-        print(indice);
-        // Validamos que `indice` esté dentro del rango de `productos`
-        if (indice >= 0 && indice < productos.length) {
-          valores2.add({
-            "indice": indice,
-            "precio": productos[indice]['Precio'],
-            "cantidad": int.tryParse(_quantityController.text) ?? 0,
-          });
-          indices.add(indice);
+      for (var producto in tipoT) {
+        if (producto == productoMasBarato) {
+          producto.fairPrice = 0;
+          producto.total = 0;
         } else {
-          print("Índice fuera de rango: $indice");
+          producto.fairPrice = producto.price;
+          final int cantidad = int.tryParse(producto.quantity) ?? 1;
+          producto.total = producto.fairPrice * cantidad;
         }
       }
-      int x = 0;
-      while (x < valores2.length) {
-        cant_t +=
-            (valores2[x]['cantidad'] as num).toInt(); // Convierte num a int
-        x++;
+      _oldFreeProductoT = null;
+      _oldDiscountProductoT = null;
+    } else if (tipoT.length == 4) {
+      List<Product> ordenados = List.from(tipoT);
+      ordenados.sort((a, b) => a.price.compareTo(b.price));
+      Product nuevoMasBarato = ordenados.first;
+
+      Product? oldFree;
+      if (prevFreeT.isNotEmpty) {
+        oldFree = prevFreeT.first;
       }
-      if (t.length >= 3) {
-        int libs_prom = 0;
-        int multipo = t.length % 3;
-        if (multipo == 0) {
-          libs_prom = t.length % 3;
+
+      for (var producto in tipoT) {
+        if (producto == nuevoMasBarato) {
+          producto.fairPrice = 0;
+          producto.total = 0;
+        } else if (oldFree != null &&
+            producto == oldFree &&
+            producto != nuevoMasBarato) {
+          producto.fairPrice = producto.price * (1 - porcentajeDescuento / 100);
+          final int cantidad = int.tryParse(producto.quantity) ?? 1;
+          producto.total = producto.fairPrice * cantidad;
         } else {
-          libs_prom = t.length ~/ 3;
-          int num_libs = (libs_prom * 3);
-          int libs_rest = (t.length - num_libs) - 1;
+          producto.fairPrice = producto.price;
+          final int cantidad = int.tryParse(producto.quantity) ?? 1;
+          producto.total = producto.fairPrice * cantidad;
         }
-        print("Total de libros de 50% gratis: $libs_prom");
-        x = 0;
-        while (x < libs_prom) {
-          num_promos_a++;
-          x++;
+      }
+
+      _oldFreeProductoT = nuevoMasBarato;
+      _oldDiscountProductoT = oldFree;
+    } else if (tipoT.length >= 5) {
+      List<Product> productosOriginales = List.from(tipoT);
+      int cantidadTotal = productosOriginales.length;
+
+      // Caso especial: EXACTAMENTE 5 productos
+      if (cantidadTotal == 5) {
+        // Los dos primeros (índices 0 y 1) se dejan sin modificar,
+        // y los últimos 3 (índices 2, 3 y 4) forman el grupo para la promoción 3x2.
+        List<Product> grupoPromo = productosOriginales.sublist(
+          2,
+        ); // índices 2,3,4
+        // Dentro del grupo, se busca el producto con menor precio.
+        var productoGratis = grupoPromo.reduce(
+          (a, b) => a.price < b.price ? a : b,
+        );
+
+        for (var producto in productosOriginales) {
+          final int cantidad = int.tryParse(producto.quantity) ?? 1;
+          if (grupoPromo.contains(producto)) {
+            if (producto == productoGratis) {
+              // Producto gratis (promo 3x2): precio 0.
+              producto.fairPrice = 0;
+              producto.total = 0;
+            } else {
+              // Los otros dos del grupo reciben el descuento.
+              producto.fairPrice =
+                  producto.price * (1 - (porcentajeDescuento / 100));
+              producto.total = producto.fairPrice * cantidad;
+            }
+          } else {
+            // Los dos primeros se dejan a precio normal.
+            producto.fairPrice = producto.price;
+            producto.total = producto.price * cantidad;
+          }
         }
+      }
+      // Caso para 6 o más productos.
+      else {
+        // Se determinan los grupos completos (cada grupo de 3 productos)
+        int gruposCompletos = cantidadTotal ~/ 3;
+        int productosEnPromo = gruposCompletos * 3;
+        int sobrantes = cantidadTotal - productosEnPromo;
+
+        // De los primeros 'productosEnPromo' se formarán los grupos de 3.
+        List<Product> productosParaPromocion = productosOriginales.sublist(
+          0,
+          productosEnPromo,
+        );
+        // Si hay sobrantes (productos que no alcanzan para un grupo completo)
+        List<Product> productosConDescuento =
+            sobrantes > 0 ? productosOriginales.sublist(productosEnPromo) : [];
+
+        // Se toma una copia de los productos para promoción y se ordenan por precio ascendente,
+        // de forma que los primeros (en precio) sean los candidatos gratuitos.
+        List<Product> sortedEligibles = List.from(productosParaPromocion)
+          ..sort((a, b) => a.price.compareTo(b.price));
+        // Se seleccionan tantos productos gratuitos como grupos completos.
+        Set<Product> productosGratis =
+            sortedEligibles.take(gruposCompletos).toSet();
+
+        // Para los productos en los grupos completos, se asigna:
+        for (var producto in productosParaPromocion) {
+          final int cantidad = int.tryParse(producto.quantity) ?? 1;
+          if (productosGratis.contains(producto)) {
+            // Producto gratis: precio 0.
+            producto.fairPrice = 0;
+            producto.total = 0;
+          } else {
+            // Los demás se cobran a precio normal.
+            producto.fairPrice = producto.price;
+            producto.total = producto.price * cantidad;
+          }
+        }
+
+        // Los productos sobrantes (si existen) reciben el descuento.
+        for (var producto in productosConDescuento) {
+          final int cantidad = int.tryParse(producto.quantity) ?? 1;
+          producto.fairPrice =
+              producto.price * (1 - (porcentajeDescuento / 100));
+          producto.total = producto.fairPrice * cantidad;
+        }
+      }
+    } else if (tipoT.isNotEmpty) {
+      for (var producto in tipoT) {
+        producto.fairPrice = producto.price * (1 - porcentajeDescuento / 100);
+        final int cantidad = int.tryParse(producto.quantity) ?? 1;
+        producto.total = producto.fairPrice * cantidad;
       }
     }
 
-    //todo: AQUI VA LA LOGICA DEL S
-
-    //TODO: aqui va la logica del n
-
-    // sumatoria de los libros principales
-    cant_g = cant_d + cant_s + cant_y + cant_t + cant_n - num_promos_a * 3;
-    int multiplo = 0;
-    int libs_prom = 0;
-
-    print("Total de libros de 3*2 gratis: $num_promos_a");
-    print("Total de libros para 3x2: ${t.length}");
-    print("Total de libros general: $cant_g");
-
-    valores.clear();
-    val_res.clear();
-    valores2.clear();
-    valores3.clear();
-    valores4.clear();
-    valores5.clear();
-    indices.clear();
-    int x = 0;
-
-    // valido si hay productos especiales
-
-    // facturacion 3x2 incluyente con cantidad
-    if (t.length >= 3) {
-      List<Map<String, dynamic>> valRes = [];
-      int multipo = t.length % 3;
-
-      //valido para los productos tipo T
-      for (int i = 0; i < t.length; i++) {
-        String idT = t[i]["id"];
-        int indice =
-            int.tryParse(getNumber(idT)) ??
-            0; // Convierte el valor a int de forma segura
-      }
+    // 6. Mantener precio original para productos tipo N y S.
+    for (var p in tipoN + tipoS) {
+      p.fairPrice = p.price;
+      final int cantidad = int.tryParse(p.quantity) ?? 1;
+      p.total = p.fairPrice * cantidad;
     }
+
+    // 7. Ordenar productos para que los gratuitos aparezcan al final.
+    _products.sort((a, b) {
+      if (a.fairPrice == 0 && b.fairPrice != 0) return 1;
+      if (a.fairPrice != 0 && b.fairPrice == 0) return -1;
+      return 0;
+    });
+
+    // 8. Recalcular total final
+    totalFinal = _products.fold(0.0, (sum, p) => sum + p.total).toInt();
   }
 
   void _buildRow(dynamic config, dynamic data) {
@@ -253,35 +343,67 @@ class _InvoceDetails extends State<InvoceDetails> {
       productos.add(data);
     }
 
-    String reference = _referenceController.text;
-    String quantityText = _quantityController.text;
+    String reference = _referenceController.text.trim();
+    String quantityText = _quantityController.text.trim();
+
+    String tipoProducto = data['Tipo'] ?? '3';
 
     int cantidad =
-        (data['Tipo'] == 'D' || data['Tipo'] == 'T' || data['Tipo'] == 'Y')
+        (tipoProducto == 'D' || tipoProducto == 'T' || tipoProducto == 'Y')
             ? 1
             : int.tryParse(quantityText) ?? 1;
 
     double precio = double.tryParse(data['Precio'].toString()) ?? 0.0;
     double totalCalculado = precio * cantidad;
 
+    final nuevoProducto = Product(
+      reference: reference,
+      description: data['Desc_Referencia'],
+      price: precio,
+      fairPrice: precio,
+      quantity: cantidad.toString(),
+      total: totalCalculado,
+      tipo: tipoProducto,
+      porcentajeDescuento: data['Descuento_Especial'],
+    );
+
     setState(() {
-      _products.add(
-        Product(
-          reference: reference,
-          description: data['Desc_Referencia'],
-          price: precio,
-          fairPrice: precio,
-          quantity: cantidad.toString(),
-          total: totalCalculado,
-          tipo: data.containsKey('Tipo') ? data['Tipo'] : null,
-        ),
+      if (tipoProducto == 'T') {
+        _products.add(nuevoProducto);
+      } else {
+        int countT = _products.where((p) => p.tipo == 'T').length;
+
+        // Calcular posición deseada en base a cantidad de productos T
+        int insertIndex = 2 - countT;
+
+        if (insertIndex < 0) insertIndex = 0;
+
+        // Contamos productos no-T y buscamos su posición real en la lista
+        int actualIndex = 0;
+        int noTipoTCount = 0;
+
+        while (actualIndex < _products.length && noTipoTCount < insertIndex) {
+          if (_products[actualIndex].tipo != 'T') {
+            noTipoTCount++;
+          }
+          actualIndex++;
+        }
+
+        _products.insert(actualIndex, nuevoProducto);
+      }
+
+      // 🧮 Total final
+      totalFinal = _products.fold<int>(
+        0,
+        (sum, item) => sum + (item.total > 0 ? item.total.toInt() : 0),
       );
+
+      calcularPromociones();
     });
 
-    // 🔹 Limpia los controladores DESPUÉS de actualizar la UI
-    Future.delayed(Duration(milliseconds: 100), () {
+    Future.delayed(const Duration(milliseconds: 100), () {
       _referenceController.clear();
-      _quantityController.clear();
+      _quantityController.text = "1";
     });
   }
 
@@ -296,14 +418,15 @@ class _InvoceDetails extends State<InvoceDetails> {
   Color _getColorByTipo(String tipo) {
     switch (tipo) {
       case "D":
-        return const Color(0xFF85CDE8); // Azul - Libro Promoción 2 X 1
+        return const Color(0xFF85CDE8); // Azul - Descuento (50%)
       case "T":
-        return const Color(0xFFFFB100); // Ámbar - Libro Promoción 3 X 2
+        return const Color(0xFFFFB100); // Ámbar - Promoción 3 X 2
       case "N":
-        return const Color(0xFF81E579); // Verde - Libro Productos especiales
+        return const Color(0xFF81E579); // Verde - Productos especiales
       case "Y":
+        return const Color(0xFFD4C9C9); // Gris - Promoción 2 X 1
       default:
-        return Colors.white; // Blanco - Libro Normal
+        return Colors.white; // Blanco - Sin tipo definido
     }
   }
 
@@ -311,13 +434,15 @@ class _InvoceDetails extends State<InvoceDetails> {
       RefLibroServices(); // Instancia del servicio
 
   void _addProduct(BuildContext context) async {
-    if (_referenceController.text.isEmpty || _quantityController.text.isEmpty) {
+    final refText = _referenceController.text.trim();
+    final quantityText = _quantityController.text.trim();
+
+    if (refText.isEmpty || quantityText.isEmpty) {
       showAlert(context, "warning", "Por favor, llene todos los datos.");
       return;
     }
 
-    int? quantity = int.tryParse(_quantityController.text);
-
+    int? quantity = int.tryParse(quantityText);
     if (quantity == null || quantity <= 0) {
       showAlert(
         context,
@@ -329,48 +454,36 @@ class _InvoceDetails extends State<InvoceDetails> {
 
     if (quantity >= 978) {
       _quantityController.text = "1";
+      quantity = 1;
     }
 
-    String refLib = _referenceController.text.trim();
-
     try {
-      final Map<String, dynamic> productData = await _refLibroService
-          .fetchProduct(refLib);
+      final productData = await _refLibroService.fetchProduct(refText);
+
+      if (productData == null) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No se encontró la referencia de este producto.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
 
       if (!context.mounted) return;
 
-      List<Map<String, dynamic>> productos = [productData];
+      final config = {"cantidad": quantity.toString(), "porc_desc": porcDesc};
 
-      //TODO: darle prioridad al tema de facturacion
+      final tipo = productData['Tipo'];
+      final int repetitions =
+          (tipo == 'D' || tipo == 'T' || tipo == 'Y') ? quantity : 1;
 
-      calcularPromociones(productos, context);
-      // ignore: avoid_print
-      print(productData);
-
-      if (productData['Tipo'] == 'D' ||
-          productData['Tipo'] == 'T' ||
-          productData['Tipo'] == 'Y') {
-        dynamic config = {
-          "cantidad": _quantityController.text,
-          "porc_desc": porcDesc,
-        };
-        int x = 0;
-        // ignore: avoid_print
-        print(_quantityController);
-        while (x < (int.tryParse(_quantityController.text) ?? 0)) {
-          _buildRow(config, productData);
-          x++;
-        }
-      } else {
-        dynamic config = {
-          "cantidad": _quantityController.text,
-          "porc_desc": porcDesc,
-        };
+      for (int i = 0; i < repetitions; i++) {
         _buildRow(config, productData);
       }
     } catch (e) {
-      // ignore: avoid_print
-      print('Error fetching product: $e');
+      print(e);
       if (context.mounted) {
         showAlert(
           context,
@@ -392,7 +505,7 @@ class _InvoceDetails extends State<InvoceDetails> {
     });
   }
 
-  void _showPaymentModal(BuildContext context, double total) {
+  void _showPaymentModal(BuildContext context, int total) {
     if (_products.isEmpty) {
       showAlert(context, "Info", "No ha agregado ningún producto");
       return;
@@ -404,7 +517,11 @@ class _InvoceDetails extends State<InvoceDetails> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => PaymentModal(total: total),
+      builder:
+          (context) => PaymentModal(
+            total: total,
+            productsData: _products, // Pasar la lista de productos
+          ),
     );
   }
 
@@ -456,7 +573,7 @@ class _InvoceDetails extends State<InvoceDetails> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: _buildInfoCard(
-                        "Descuento",
+                        "Descuento en Factura",
                         "${invoiceDiscount.toString()}%",
                         Icons.discount,
                         Colors.orange,
@@ -599,6 +716,7 @@ class _InvoceDetails extends State<InvoceDetails> {
                                                   setState(() {
                                                     _products.remove(product);
                                                     productos.remove(product);
+                                                    calcularPromociones(); // <- Aquí actualizas la promo después de eliminar
                                                   });
                                                 },
                                               ),
@@ -709,6 +827,7 @@ class _InvoceDetails extends State<InvoceDetails> {
                         children: [
                           TextField(
                             controller: _referenceController,
+                            focusNode: _referenceFocusNode,
                             keyboardType: TextInputType.number,
                             decoration: const InputDecoration(
                               labelText: 'Referencia',
@@ -719,6 +838,12 @@ class _InvoceDetails extends State<InvoceDetails> {
                               ),
                               prefixIcon: Icon(Icons.numbers),
                             ),
+                            onSubmitted: (value) {
+                              if (value.isNotEmpty && value.length >= 8) {
+                                print('Código leído: $value');
+                                // Aquí pones tu lógica cuando se escanee o escriba el código
+                              }
+                            },
                           ),
                           const SizedBox(
                             height: 16,
@@ -769,7 +894,10 @@ class _InvoceDetails extends State<InvoceDetails> {
                                 width: double.infinity,
                                 child: ElevatedButton(
                                   onPressed:
-                                      () => _showPaymentModal(context, 2000),
+                                      () => _showPaymentModal(
+                                        context,
+                                        totalFinal,
+                                      ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.green,
                                     foregroundColor: Colors.white,
@@ -839,11 +967,26 @@ class _InvoceDetails extends State<InvoceDetails> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: widget.onSync,
-        shape:
-            const CircleBorder(), // Hace que el botón sea perfectamente redondo
-        child: const Icon(Icons.sync),
+      floatingActionButton: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            heroTag: 'eanReader',
+            onPressed: _scanEAN13, // Enfoca el TextField para escanear
+            shape: const CircleBorder(),
+            child: const Icon(Icons.qr_code),
+            tooltip: 'Leer EAN-13',
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton(
+            heroTag: 'syncButton',
+            onPressed: widget.onSync,
+            shape: const CircleBorder(),
+            child: const Icon(Icons.sync),
+            tooltip: 'Sincronizar',
+          ),
+        ],
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
@@ -962,7 +1105,10 @@ class _InvoceDetails extends State<InvoceDetails> {
               children: [
                 _buildLegendItem(Colors.white, 'Libro Normal'),
                 const SizedBox(width: 16),
-                _buildLegendItem(Color(0xFF85CDE8), 'Libro Promoción 2 X 1'),
+                _buildLegendItem(
+                  const Color(0xFF85CDE8),
+                  'Segundo libro con 50%',
+                ),
                 const SizedBox(width: 16),
                 _buildLegendItem(
                   const Color(0xFFFFB100),
@@ -972,6 +1118,11 @@ class _InvoceDetails extends State<InvoceDetails> {
                 _buildLegendItem(
                   const Color(0xFF81E579),
                   'Libro Productos especiales',
+                ),
+                const SizedBox(width: 16),
+                _buildLegendItem(
+                  const Color(0xFFD4C9C9),
+                  'Libro Promocion 2 X 1',
                 ),
               ],
             ),

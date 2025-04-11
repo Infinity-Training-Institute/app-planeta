@@ -96,7 +96,7 @@ class AppDatabase {
           )
         ''');
 
-        // promociones (3x2, 50%, PROMO HORAS)
+        // promociones (3x2, 50%)
         await db.execute('''
           CREATE TABLE IF NOT EXISTS Promociones (
             Cod_Promocion INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,15 +109,17 @@ class AppDatabase {
           )
         ''');
 
-        //Tabla Promocion bono
+        // Tabla Promocion Hora
         await db.execute('''
-          CREATE TABLE Promocion_Bono (
+          CREATE TABLE IF NOT EXISTS Promocion_Horas (
             Cod_Promocion INTEGER PRIMARY KEY AUTOINCREMENT,
             Fecha_Promocion TEXT NOT NULL,
-            Fecha_Promocion_Hasta TEXT NOT NULL,
-            Valor_Maximo INTEGER NOT NULL,
-            Descuento_Promocion INTEGER NOT NULL,
-            Frase_Bono TEXT NOT NULL
+            Hora_Desde TEXT NOT NULL,
+            Minuto_Desde TEXT NOT NULL,
+            Hora_Hasta TEXT NOT NULL,
+            Minuto_Hasta TEXT NOT NULL,
+            Descuento_Promocion INT NOT NULL,
+            Usuario TEXT NOT NULL
           )
         ''');
 
@@ -130,25 +132,6 @@ class AppDatabase {
             Porcentaje_Descuento INTEGER NOT NULL,
             Obsequio TEXT NOT NULL,
             Usuario TEXT NOT NULL
-          )
-        ''');
-
-        // tabla promocion paquetes
-        await db.execute('''
-          CREATE TABLE IF NOT EXISTS Promocion_Paquetes (
-            Cod_Promocion INTEGER PRIMARY KEY AUTOINCREMENT,
-            Descripcion_Paquete TEXT NOT NULL,
-            Cantidad_Paquete INTEGER NOT NULL,
-            Precio INTEGER NOT NULL,
-            Usuario TEXT NOT NULL
-          )
-        ''');
-
-        // tabla promocion stand
-        await db.execute('''
-          CREATE TABLE IF NOT EXISTS Promocion_Stand (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            Num_Stand INTEGER NOT NULL
           )
         ''');
 
@@ -225,9 +208,7 @@ class AppDatabase {
             Numero_Resolucion TEXT NOT NULL, -- Resolucion
             Factura_Actual INTEGER NOT NULL, -- # Factura Actual
             Nick_Usuario TEXT NOT NULL, -- Nick Usuario
-            Clave_Tecnica TEXT NOT NULL,
-            Factura_Final INTEGER NOT NULL, -- # Factura Final
-            Datos_Nube INTEGER NOT NULL
+            Clave_Tecnica TEXT NOT NULL
           )
         ''');
 
@@ -256,7 +237,6 @@ class AppDatabase {
             clciud TEXT NOT NULL, -- Ciudad
             cltele TEXT NOT NULL, -- Teléfono (bigint en MySQL → INTEGER en SQLite)
             clusua TEXT NOT NULL, -- Usuario
-            cl_nube INTEGER NOT NULL, -- Datos en la nube
             cltipo TEXT NOT NULL, -- Tipo de cliente
             clfecha TEXT NOT NULL -- Fecha (date en MySQL → TEXT en SQLite, formato 'YYYY-MM-DD')
           ) 

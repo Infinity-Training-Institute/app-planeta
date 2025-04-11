@@ -17,4 +17,22 @@ class DatosCajaDao {
       'Clave_Tecnica': caja.claveTecnica,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
+
+  Future<List<DatosCajaModel>> getCajas() async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query('Datos_Caja');
+
+    return List.generate(maps.length, (i) {
+      return DatosCajaModel(
+        codCaja: maps[i]['Cod_Caja'],
+        stand: maps[i]['Stand'],
+        numeroCaja: maps[i]['Numero_Caja'],
+        facturaInicio: maps[i]['Factura_Inicio'].toString(),
+        numeroResolucion: maps[i]['Numero_Resolucion'],
+        facturaActual: maps[i]['Factura_Actual'].toString(),
+        nickUsuario: maps[i]['Nick_Usuario'],
+        claveTecnica: maps[i]['Clave_Tecnica'],
+      );
+    });
+  }
 }

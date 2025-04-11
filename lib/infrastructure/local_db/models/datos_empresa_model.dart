@@ -1,10 +1,10 @@
 class DatosEmpresaModel {
   final int? id;
-  final String nombreEmpresa;
-  final String nit;
-  final String direccion;
-  final String telefono;
-  final String email;
+  final dynamic nombreEmpresa;
+  final dynamic nit;
+  final dynamic direccion;
+  final dynamic telefono;
+  final dynamic email;
   final int logo;
 
   DatosEmpresaModel({

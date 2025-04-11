@@ -5,3 +5,4 @@ export 'products_dao.dart';
 export 'text_factura_dao.dart';
 export 'update_dao.dart';
 export 'user_dao.dart';
+export 'promociones_dao.dart';

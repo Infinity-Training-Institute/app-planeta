@@ -7,8 +7,14 @@ import 'providers/connectivity_provider.dart';
 import 'presentation/screens/home/home_screen.dart';
 import 'presentation/screens/login/login_screen.dart';
 
-void main() {
+// libreria para los permisos
+import 'package:permission_handler/permission_handler.dart';
+
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Solicitar permisos necesarios al iniciar la app
+  await requestPermissions();
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -29,6 +35,30 @@ void main() {
       child: const MyApp(),
     ),
   );
+}
+
+Future<void> requestPermissions() async {
+  // solicitamos permisos de
+  /* 
+    1. Acceso a la camara
+    2. Acesso al bluethoot
+    3. Acesso al internet 
+    4. Acesso al almacenamiento interno
+    5. Acesso al nfc
+  */
+
+  await Permission.camera.request();
+
+  // Bluetooth (especial para Android 12+)
+  await Permission.bluetooth.request();
+  await Permission.bluetoothConnect.request();
+  await Permission.bluetoothScan.request();
+
+  // Almacenamiento
+  await Permission.storage.request();
+
+  // Ubicación (por si tu impresora térmica necesita escanear dispositivos)
+  await Permission.location.request();
 }
 
 class MyApp extends StatelessWidget {
