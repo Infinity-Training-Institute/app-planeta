@@ -156,17 +156,127 @@ class _InvoceDetails extends State<InvoceDetails> {
       (p) => p['Cod_Promocion'] != null,
       orElse: () => {},
     );
-    if (promo.isEmpty) return;
 
-    final double porcentajeDescuento =
-        (promo['Porcentaje_Descuento'] ?? 0).toDouble();
-    final int desde = int.tryParse(promo['Productos_Desde'].toString()) ?? 0;
-    final int hasta = int.tryParse(promo['Productos_Hasta'].toString()) ?? 0;
+    print("isEmpty: $promo");
 
     // 2. Separar productos por tipo.
     final List<Product> tipoT = _products.where((p) => p.tipo == 'T').toList();
     final List<Product> tipoN = _products.where((p) => p.tipo == 'N').toList();
     final List<Product> tipoS = _products.where((p) => p.tipo == 'S').toList();
+    final List<Product> tipoY = _products.where((p) => p.tipo == 'Y').toList();
+    final List<Product> tipoD = _products.where((p) => p.tipo == 'D').toList();
+
+    // TIPO N
+    for (final n in tipoN) {
+      final qty = int.tryParse(n.quantity) ?? 1;
+      final descuentoEspecial = n.porcentajeDescuento ?? 0;
+
+      if (descuentoEspecial > 0) {
+        final descuento = n.price * (1 - (descuentoEspecial / 100));
+        n.fairPrice = descuento;
+        n.total = descuento * qty;
+      } else {
+        n.fairPrice = n.price;
+        n.total = n.price * qty;
+      }
+    }
+
+    if (promo.isEmpty) {
+      // 1. Agrupar productos tipo T secuencialmente en grupos de 3
+      final int totalT = tipoT.length;
+      final int grupos = totalT ~/ 3;
+      final int resto = totalT % 3;
+
+      for (int i = 0; i < grupos; i++) {
+        List<Product> grupo = tipoT.sublist(i * 3, (i + 1) * 3);
+
+        // 1. Encontrar precio mínimo
+        double minPrice = grupo
+            .map((p) => p.price)
+            .reduce((a, b) => a < b ? a : b);
+
+        // 2. Obtener todos con precio mínimo
+        List<Product> candidatosGratis =
+            grupo.where((p) => p.price == minPrice).toList();
+
+        // 3. Elegir el último de esos
+        Product prodGratis = candidatosGratis.last;
+
+        for (var producto in grupo) {
+          final int cantidad = int.tryParse(producto.quantity) ?? 1;
+          if (producto == prodGratis) {
+            producto.fairPrice = 0;
+            producto.total = 0;
+          } else {
+            producto.fairPrice = producto.price;
+            producto.total = producto.price * cantidad;
+          }
+        }
+      }
+
+      // 2. Procesar productos tipo T que sobran (no entraron en grupo)
+      if (resto > 0) {
+        List<Product> restoProductos = tipoT.sublist(grupos * 3);
+        for (var producto in restoProductos) {
+          final int cantidad = int.tryParse(producto.quantity) ?? 1;
+          producto.fairPrice = producto.price;
+          producto.total = producto.price * cantidad;
+        }
+      }
+
+      // agrupamos los productos tipo Y secuencialmente en grupos
+      final int totalY = tipoY.length;
+      final int gruposY = totalY ~/ 2;
+      final int restoY = totalY % 2;
+
+      for (int i = 0; i < gruposY; i++) {
+        List<Product> grupo = tipoY.sublist(i * 3, (i + 1) * 3);
+
+        // Dentro del grupo de 2, encontrar el más barato
+        Product prodGratis = grupo.reduce((a, b) => a.price < b.price ? a : b);
+
+        for (var producto in grupo) {
+          final int cantidad = int.tryParse(producto.quantity) ?? 1;
+          if (producto == prodGratis) {
+            producto.fairPrice = 0;
+            producto.total = 0;
+          } else {
+            producto.fairPrice = producto.price;
+            producto.total = producto.price * cantidad;
+          }
+        }
+      }
+
+      // procesamos los productos tipo Y que sobran
+      if (restoY > 0) {
+        List<Product> restoProductosY = tipoY.sublist(gruposY * 2);
+        for (var producto in restoProductosY) {
+          final int cantidad = int.tryParse(producto.quantity) ?? 1;
+          producto.fairPrice = producto.price;
+          producto.total = producto.price * cantidad;
+        }
+      }
+
+      // 4. Ordenar productos si se desea que los gratuitos estén al final
+      _products.sort((a, b) {
+        if (a.fairPrice == 0 && b.fairPrice != 0) return 1;
+        if (a.fairPrice != 0 && b.fairPrice == 0) return -1;
+        return 0;
+      });
+
+      // 5. Recalcular total final
+      totalFinal = _products.fold(0.0, (sum, p) => sum + p.total).toInt();
+
+      return;
+    }
+
+    final double porcentajeDescuento =
+        (promo['Porcentaje_Descuento'] ?? 0).toDouble();
+
+    invoiceDiscount = porcentajeDescuento;
+
+    final int desde = int.tryParse(promo['Productos_Desde'].toString()) ?? 0;
+    final int hasta = int.tryParse(promo['Productos_Hasta'].toString()) ?? 0;
 
     // 3. Capturar el estado previo de los productos T que estaban gratis.
     final List<Product> prevFreeT =
@@ -228,84 +338,185 @@ class _InvoceDetails extends State<InvoceDetails> {
       _oldDiscountProductoT = oldFree;
     } else if (tipoT.length >= 5) {
       List<Product> productosOriginales = List.from(tipoT);
-      int cantidadTotal = productosOriginales.length;
+      int total = productosOriginales.length;
 
-      // Caso especial: EXACTAMENTE 5 productos
-      if (cantidadTotal == 5) {
-        // Los dos primeros (índices 0 y 1) se dejan sin modificar,
-        // y los últimos 3 (índices 2, 3 y 4) forman el grupo para la promoción 3x2.
-        List<Product> grupoPromo = productosOriginales.sublist(
-          2,
-        ); // índices 2,3,4
-        // Dentro del grupo, se busca el producto con menor precio.
-        var productoGratis = grupoPromo.reduce(
-          (a, b) => a.price < b.price ? a : b,
-        );
+      // Caso A: EXACTAMENTE 5 productos.
+      if (total == 5) {
+        // Los dos primeros (índices 0 y 1) se dejan sin modificar.
+        // Los últimos 3 (índices 2, 3 y 4) forman el grupo de promoción.
+        List<Product> grupoPromo = productosOriginales.sublist(2);
+        var prodGratis = grupoPromo.reduce((a, b) => a.price < b.price ? a : b);
 
         for (var producto in productosOriginales) {
           final int cantidad = int.tryParse(producto.quantity) ?? 1;
           if (grupoPromo.contains(producto)) {
-            if (producto == productoGratis) {
-              // Producto gratis (promo 3x2): precio 0.
+            if (producto == prodGratis) {
+              // Producto gratis en 3×2.
               producto.fairPrice = 0;
               producto.total = 0;
             } else {
-              // Los otros dos del grupo reciben el descuento.
+              // Los otros dos del grupo reciben descuento.
               producto.fairPrice =
                   producto.price * (1 - (porcentajeDescuento / 100));
               producto.total = producto.fairPrice * cantidad;
             }
           } else {
-            // Los dos primeros se dejan a precio normal.
+            // Los dos primeros se cobran a precio normal.
             producto.fairPrice = producto.price;
             producto.total = producto.price * cantidad;
           }
         }
       }
-      // Caso para 6 o más productos.
-      else {
-        // Se determinan los grupos completos (cada grupo de 3 productos)
-        int gruposCompletos = cantidadTotal ~/ 3;
-        int productosEnPromo = gruposCompletos * 3;
-        int sobrantes = cantidadTotal - productosEnPromo;
-
-        // De los primeros 'productosEnPromo' se formarán los grupos de 3.
-        List<Product> productosParaPromocion = productosOriginales.sublist(
-          0,
-          productosEnPromo,
-        );
-        // Si hay sobrantes (productos que no alcanzan para un grupo completo)
-        List<Product> productosConDescuento =
-            sobrantes > 0 ? productosOriginales.sublist(productosEnPromo) : [];
-
-        // Se toma una copia de los productos para promoción y se ordenan por precio ascendente,
-        // de forma que los primeros (en precio) sean los candidatos gratuitos.
-        List<Product> sortedEligibles = List.from(productosParaPromocion)
-          ..sort((a, b) => a.price.compareTo(b.price));
-        // Se seleccionan tantos productos gratuitos como grupos completos.
-        Set<Product> productosGratis =
-            sortedEligibles.take(gruposCompletos).toSet();
-
-        // Para los productos en los grupos completos, se asigna:
-        for (var producto in productosParaPromocion) {
-          final int cantidad = int.tryParse(producto.quantity) ?? 1;
-          if (productosGratis.contains(producto)) {
-            // Producto gratis: precio 0.
-            producto.fairPrice = 0;
-            producto.total = 0;
-          } else {
-            // Los demás se cobran a precio normal.
-            producto.fairPrice = producto.price;
-            producto.total = producto.price * cantidad;
+      // Caso B: EXACTAMENTE 6 productos.
+      else if (total == 6) {
+        // Formamos dos grupos completos:
+        // Grupo1: índices 0,1,2; Grupo2: índices 3,4,5.
+        for (int i = 0; i < total; i += 3) {
+          var grupo = productosOriginales.sublist(i, i + 3);
+          var prodGratis = grupo.reduce((a, b) => a.price < b.price ? a : b);
+          for (var producto in grupo) {
+            final int cantidad = int.tryParse(producto.quantity) ?? 1;
+            if (producto == prodGratis) {
+              producto.fairPrice = 0;
+              producto.total = 0;
+            } else {
+              producto.fairPrice = producto.price;
+              producto.total = producto.price * cantidad;
+            }
           }
         }
+      }
+      // Caso C: EXACTAMENTE 7 productos.
+      else if (total == 7) {
+        // Según tu requerimiento:
+        // - Grupo 1: índices 0,1,2 (promoción 3×2).
+        // - El producto en la 4ª posición (índice 3) quedará fuera y recibirá descuento.
+        // - Grupo 2: índices 4,5,6 (promoción 3×2).
 
-        // Los productos sobrantes (si existen) reciben el descuento.
-        for (var producto in productosConDescuento) {
-          final int cantidad = int.tryParse(producto.quantity) ?? 1;
-          producto.fairPrice =
-              producto.price * (1 - (porcentajeDescuento / 100));
-          producto.total = producto.fairPrice * cantidad;
+        // Grupo 1:
+        List<Product> grupo1 = productosOriginales.sublist(0, 3);
+        var prodGratis1 = grupo1.reduce((a, b) => a.price < b.price ? a : b);
+        // Grupo 2:
+        List<Product> grupo2 = productosOriginales.sublist(4, 7);
+        var prodGratis2 = grupo2.reduce((a, b) => a.price < b.price ? a : b);
+
+        for (int i = 0; i < total; i++) {
+          final int cantidad =
+              int.tryParse(productosOriginales[i].quantity) ?? 1;
+          if (i < 3) {
+            // Pertenece a grupo 1.
+            if (productosOriginales[i] == prodGratis1) {
+              productosOriginales[i].fairPrice = 0;
+              productosOriginales[i].total = 0;
+            } else {
+              productosOriginales[i].fairPrice = productosOriginales[i].price;
+              productosOriginales[i].total =
+                  productosOriginales[i].price * cantidad;
+            }
+          } else if (i == 3) {
+            // El producto en 4ª posición recibe descuento.
+            productosOriginales[i].fairPrice =
+                productosOriginales[i].price *
+                (1 - (porcentajeDescuento / 100));
+            productosOriginales[i].total =
+                productosOriginales[i].fairPrice * cantidad;
+          } else {
+            // i en 4,5,6 pertenecen a grupo 2.
+            if (productosOriginales[i] == prodGratis2) {
+              productosOriginales[i].fairPrice = 0;
+              productosOriginales[i].total = 0;
+            } else {
+              productosOriginales[i].fairPrice = productosOriginales[i].price;
+              productosOriginales[i].total =
+                  productosOriginales[i].price * cantidad;
+            }
+          }
+        }
+      }
+      // Caso D: EXACTAMENTE 8 productos.
+      else if (total == 8) {
+        // Podemos asignar de la siguiente manera (por ejemplo):
+        // - Grupo 1: índices 0,1,2 (promoción 3×2).
+        // - El producto en posición 4 (índice 3) recibe descuento.
+        // - Grupo 2: índices 4,5,6 (promoción 3×2).
+        // - El producto en posición 8 (índice 7) recibe descuento.
+        List<Product> grupo1 = productosOriginales.sublist(0, 3);
+        var prodGratis1 = grupo1.reduce((a, b) => a.price < b.price ? a : b);
+        List<Product> grupo2 = productosOriginales.sublist(4, 7);
+        var prodGratis2 = grupo2.reduce((a, b) => a.price < b.price ? a : b);
+
+        for (int i = 0; i < total; i++) {
+          final int cantidad =
+              int.tryParse(productosOriginales[i].quantity) ?? 1;
+          if (i < 3) {
+            // Grupo 1
+            if (productosOriginales[i] == prodGratis1) {
+              productosOriginales[i].fairPrice = 0;
+              productosOriginales[i].total = 0;
+            } else {
+              productosOriginales[i].fairPrice = productosOriginales[i].price;
+              productosOriginales[i].total =
+                  productosOriginales[i].price * cantidad;
+            }
+          } else if (i == 3) {
+            // Índice 3 recibe descuento.
+            productosOriginales[i].fairPrice =
+                productosOriginales[i].price *
+                (1 - (porcentajeDescuento / 100));
+            productosOriginales[i].total =
+                productosOriginales[i].fairPrice * cantidad;
+          } else if (i < 7) {
+            // Grupo 2: índices 4,5,6
+            if (productosOriginales[i] == prodGratis2) {
+              productosOriginales[i].fairPrice = 0;
+              productosOriginales[i].total = 0;
+            } else {
+              productosOriginales[i].fairPrice = productosOriginales[i].price;
+              productosOriginales[i].total =
+                  productosOriginales[i].price * cantidad;
+            }
+          } else {
+            // Índice 7 recibe descuento.
+            productosOriginales[i].fairPrice =
+                productosOriginales[i].price *
+                (1 - (porcentajeDescuento / 100));
+            productosOriginales[i].total =
+                productosOriginales[i].fairPrice * cantidad;
+          }
+        }
+      }
+      // Caso E: 9 o más productos (multiplo de 3 o sobrante)
+      else {
+        // Aquí agrupamos de forma estándar: se forman grupos completos de 3 a partir del inicio.
+        int gruposCompletos = total ~/ 3;
+        int productosEnGrupo = gruposCompletos * 3;
+        int sobrantes = total - productosEnGrupo; // Estos recibirán descuento.
+
+        print(sobrantes);
+
+        // Para los grupos completos:
+        for (int i = 0; i < productosEnGrupo; i += 3) {
+          var grupo = productosOriginales.sublist(i, i + 3);
+          var prodGratis = grupo.reduce((a, b) => a.price < b.price ? a : b);
+          for (var producto in grupo) {
+            final int cantidad = int.tryParse(producto.quantity) ?? 1;
+            if (producto == prodGratis) {
+              producto.fairPrice = 0;
+              producto.total = 0;
+            } else {
+              producto.fairPrice = producto.price;
+              producto.total = producto.price * cantidad;
+            }
+          }
+        }
+        // Para los sobrantes:
+        for (int i = productosEnGrupo; i < total; i++) {
+          final int cantidad =
+              int.tryParse(productosOriginales[i].quantity) ?? 1;
+          productosOriginales[i].fairPrice =
+              productosOriginales[i].price * (1 - (porcentajeDescuento / 100));
+          productosOriginales[i].total =
+              productosOriginales[i].fairPrice * cantidad;
         }
       }
     } else if (tipoT.isNotEmpty) {
@@ -317,7 +528,7 @@ class _InvoceDetails extends State<InvoceDetails> {
     }
 
     // 6. Mantener precio original para productos tipo N y S.
-    for (var p in tipoN + tipoS) {
+    for (var p in tipoS) {
       p.fairPrice = p.price;
       final int cantidad = int.tryParse(p.quantity) ?? 1;
       p.total = p.fairPrice * cantidad;

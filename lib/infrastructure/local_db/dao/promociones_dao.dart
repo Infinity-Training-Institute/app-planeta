@@ -15,6 +15,17 @@ class PromocionesDao {
       'Tipo_Promocion': promocion.tipoPromocion,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
+
+  Future<int> countPromociones() async {
+    final db = await AppDatabase.database;
+    final result = await db.rawQuery('SELECT COUNT(*) FROM Promociones');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<void> deleteAll() async {
+    final db = await AppDatabase.database;
+    await db.delete('Promociones');
+  }
 }
 
 class PromocionHoraDao {
@@ -31,6 +42,17 @@ class PromocionHoraDao {
       'Usuario': promocionHoras.usuario,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
+
+  Future<int> countPromocionHoras() async {
+    final db = await AppDatabase.database;
+    final result = await db.rawQuery('SELECT COUNT(*) FROM Promocion_Horas');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<void> deleteAll() async {
+    final db = await AppDatabase.database;
+    await db.delete('Promocion_Horas');
+  }
 }
 
 class PromocionCantidadDao {
@@ -46,5 +68,16 @@ class PromocionCantidadDao {
       'Obsequio': promocionCantidad.obsequio,
       'Usuario': promocionCantidad.usuario,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<int> countPromocionCantidad() async {
+    final db = await AppDatabase.database;
+    final result = await db.rawQuery('SELECT COUNT(*) FROM Promocion_Cantidad');
+    return Sqflite.firstIntValue(result) ?? 0;
+  }
+
+  Future<void> deleteAll() async {
+    final db = await AppDatabase.database;
+    await db.delete('Promocion_Cantidad');
   }
 }

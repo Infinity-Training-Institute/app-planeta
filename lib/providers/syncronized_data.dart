@@ -45,6 +45,16 @@ class SyncronizedData with ChangeNotifier {
     }
   }
 
+  Future<void> clearIfEmpty<T>({
+    required List<dynamic>? serverList,
+    required Future<int> Function() localCount,
+    required Future<void> Function() deleteAll,
+  }) async {
+    if ((serverList == null || serverList.isEmpty) && await localCount() > 0) {
+      await deleteAll();
+    }
+  }
+
   Future<void> getDataToCloud(BuildContext context) async {
     _setLoading(true);
     _message = "";
@@ -89,6 +99,25 @@ class SyncronizedData with ChangeNotifier {
         List<dynamic> datosPromocionHorasList = data['datos_promocion_horas'];
         List<dynamic> datosPromocionCantidadList =
             data['datos_promocion_cantidad'];
+
+        // verificamos si la lista de promociones esta vacia
+        await clearIfEmpty(
+          serverList: datosPromocionList,
+          localCount: _promocionesDao.countPromociones,
+          deleteAll: _promocionesDao.deleteAll,
+        );
+
+        await clearIfEmpty(
+          serverList: datosPromocionHorasList,
+          localCount: _promocionHoraDao.countPromocionHoras,
+          deleteAll: _promocionHoraDao.deleteAll,
+        );
+
+        await clearIfEmpty(
+          serverList: datosPromocionCantidadList,
+          localCount: _promocionCantidadDao.countPromocionCantidad,
+          deleteAll: _promocionCantidadDao.deleteAll,
+        );
 
         //TODO: falta consultar las promociones
         await Future.wait([
