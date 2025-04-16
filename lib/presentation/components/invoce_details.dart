@@ -204,7 +204,7 @@ class _InvoceDetails extends State<InvoceDetails> {
 
         for (var producto in grupo) {
           final int cantidad = int.tryParse(producto.quantity) ?? 1;
-          if (producto == prodGratis) {
+          if (producto.reference == prodGratis.reference) {
             producto.fairPrice = 0;
             producto.total = 0;
           } else {
@@ -224,36 +224,81 @@ class _InvoceDetails extends State<InvoceDetails> {
         }
       }
 
-      // agrupamos los productos tipo Y secuencialmente en grupos
-      final int totalY = tipoY.length;
-      final int gruposY = totalY ~/ 2;
-      final int restoY = totalY % 2;
-
-      for (int i = 0; i < gruposY; i++) {
-        List<Product> grupo = tipoY.sublist(i * 3, (i + 1) * 3);
-
-        // Dentro del grupo de 2, encontrar el más barato
-        Product prodGratis = grupo.reduce((a, b) => a.price < b.price ? a : b);
-
-        for (var producto in grupo) {
-          final int cantidad = int.tryParse(producto.quantity) ?? 1;
-          if (producto == prodGratis) {
-            producto.fairPrice = 0;
-            producto.total = 0;
-          } else {
-            producto.fairPrice = producto.price;
-            producto.total = producto.price * cantidad;
-          }
-        }
+      // 1. Resetear todos los productos a su valor original.
+      for (var producto in tipoY) {
+        final int cantidad = int.tryParse(producto.quantity) ?? 1;
+        producto.fairPrice = producto.price;
+        producto.total = producto.price * cantidad;
       }
 
-      // procesamos los productos tipo Y que sobran
-      if (restoY > 0) {
-        List<Product> restoProductosY = tipoY.sublist(gruposY * 2);
-        for (var producto in restoProductosY) {
-          final int cantidad = int.tryParse(producto.quantity) ?? 1;
-          producto.fairPrice = producto.price;
-          producto.total = producto.price * cantidad;
+      final int total = tipoY.length;
+
+      if (total < 2) {
+        // Menos de dos productos: no se aplica promoción.
+      } else {
+        if (total % 2 == 0) {
+          // Caso: total par (2, 4, 6, …). Se procesan todos en parejas.
+          for (int i = 0; i < total; i += 2) {
+            Product a = tipoY[i];
+            Product b = tipoY[i + 1];
+
+            // Comparar precios; si son iguales, se descuenta al segundo.
+            if (a.price < b.price) {
+              a.fairPrice = 0;
+              a.total = 0;
+            } else if (a.price > b.price) {
+              b.fairPrice = 0;
+              b.total = 0;
+            } else {
+              b.fairPrice = 0;
+              b.total = 0;
+            }
+          }
+        } else {
+          // Caso: total impar (3, 5, 7, …)
+          if (total == 3) {
+            // Cuando hay 3 productos, se procesa el grupo completo.
+            List<Product> grupo = tipoY.sublist(0, 3);
+            double minPrice = grupo
+                .map((p) => p.price)
+                .reduce((a, b) => a < b ? a : b);
+            List<Product> candidatos =
+                grupo.where((p) => p.price == minPrice).toList();
+            // Se toma el último de los que tienen el precio mínimo.
+            Product descuento = candidatos.last;
+            descuento.fairPrice = 0;
+            descuento.total = 0;
+          } else {
+            // Para 5, 7, … productos:
+            // Procesar primero los pares completos hasta que queden 3 elementos.
+            final int numPares = (total - 3) ~/ 2;
+            for (int i = 0; i < numPares; i++) {
+              int idx = i * 2;
+              Product a = tipoY[idx];
+              Product b = tipoY[idx + 1];
+
+              if (a.price < b.price) {
+                a.fairPrice = 0;
+                a.total = 0;
+              } else if (a.price > b.price) {
+                b.fairPrice = 0;
+                b.total = 0;
+              } else {
+                b.fairPrice = 0;
+                b.total = 0;
+              }
+            }
+            // Procesar los últimos 3 elementos como un grupo.
+            List<Product> ultimosTres = tipoY.sublist(total - 3);
+            double minPrice = ultimosTres
+                .map((p) => p.price)
+                .reduce((a, b) => a < b ? a : b);
+            List<Product> candidatos =
+                ultimosTres.where((p) => p.price == minPrice).toList();
+            Product descuento = candidatos.last;
+            descuento.fairPrice = 0;
+            descuento.total = 0;
+          }
         }
       }
 
