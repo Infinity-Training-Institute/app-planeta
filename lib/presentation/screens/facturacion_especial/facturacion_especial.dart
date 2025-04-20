@@ -14,7 +14,7 @@ class FacturacionEspecial extends StatefulWidget {
 }
 
 class _FacturacionEspecial extends State<FacturacionEspecial> {
-  double invoiceDiscount = 0.0;
+  int invoiceDiscount = 0;
   bool _isDialogCompleted = false; // Controla si ya se ingresó el descuento
 
   @override
@@ -55,8 +55,7 @@ class _FacturacionEspecial extends State<FacturacionEspecial> {
               ElevatedButton(
                 onPressed: () {
                   setState(() {
-                    invoiceDiscount =
-                        double.tryParse(discountController.text) ?? 0.0;
+                    invoiceDiscount = discountController.text as int;
                     _isDialogCompleted = true; // Permite mostrar la pantalla
                   });
                   Navigator.pop(context);
