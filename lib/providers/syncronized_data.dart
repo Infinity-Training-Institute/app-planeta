@@ -119,7 +119,11 @@ class SyncronizedData with ChangeNotifier {
           deleteAll: _promocionCantidadDao.deleteAll,
         );
 
-        //TODO: falta consultar las promociones
+        // eliminamos los datos de la tabla de promociones
+        await _promocionesDao.deleteAll();
+        await _promocionHoraDao.deleteAll();
+        await _promocionCantidadDao.deleteAll();
+
         await Future.wait([
           insertData<PromocionesModel>(
             datosPromocionList,
@@ -128,6 +132,7 @@ class SyncronizedData with ChangeNotifier {
               codPromocion: int.tryParse(item['Cod_Promocion'].toString()),
               fechaPromocion: item['Fecha_Promocion'],
               horaDesde: item['Hora_Desde'],
+              minutoDesde: item['Minuto_Desde'],
               horaHasta: item['Hora_Hasta'],
               minutoHasta: item['Minuto_Hasta'],
               usuario: item['Usuario'],

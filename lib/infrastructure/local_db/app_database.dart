@@ -12,6 +12,11 @@ class AppDatabase {
   }
 
   static Future<Database> _initDatabase() async {
+    // Obtén la ruta de la base de datos
+    // String path = join(await getDatabasesPath(), 'app_database.db');
+
+    // Elimina la base de datos
+    // await deleteDatabase(path);
     return openDatabase(
       join(await getDatabasesPath(), 'app_database.db'),
       version: 2,
@@ -102,6 +107,7 @@ class AppDatabase {
             Cod_Promocion INTEGER PRIMARY KEY AUTOINCREMENT,
             Fecha_Promocion TEXT NOT NULL,
             Hora_Desde TEXT NOT NULL,
+            Minuto_Desde TEXT NOT NULL,
             Hora_Hasta TEXT NOT NULL,
             Minuto_Hasta TEXT NOT NULL,
             Usuario TEXT NOT NULL,
@@ -244,19 +250,14 @@ class AppDatabase {
 
         await db.execute('''
           CREATE TABLE IF NOT EXISTS actualizacion_datos (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              fecha_actualizacion TEXT NOT NULL
-          )
-        ''');
-      },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
-          await db.execute('''
-          CREATE TABLE IF NOT EXISTS actualizacion_datos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             fecha_actualizacion TEXT NOT NULL
           )
-        ''');
+          ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // Agregar la nueva tabla o realizar cambios necesarios
         }
       },
     );

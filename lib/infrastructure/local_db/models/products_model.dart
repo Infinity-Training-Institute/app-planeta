@@ -112,7 +112,7 @@ class ProductsPaquetesModel {
   final String codigoEan;
   final String referencia;
   final String descReferencia;
-  final int? precio;
+  final String precio;
   final String usuario;
 
   ProductsPaquetesModel({

@@ -58,12 +58,12 @@ class ProductsDaoEspecials {
 class ProductsPaquetesDao {
   Future<int> insertProductPaquete(ProductsPaquetesModel paquete) async {
     final db = await AppDatabase.database;
-    return await db.insert('Promocion_Paquetes', {
+    return await db.insert('Productos_Paquetes', {
       'id': paquete.id,
       'Codigo_Paquete': paquete.codigoPaquete,
       'Codigo_Ean': paquete.codigoEan,
       'Referencia': paquete.referencia,
-      'Descripcion_Referencia': paquete.descReferencia,
+      'Desc_Referencia': paquete.descReferencia,
       'Precio': paquete.precio,
       'Usuario': paquete.usuario,
     }, conflictAlgorithm: ConflictAlgorithm.replace);

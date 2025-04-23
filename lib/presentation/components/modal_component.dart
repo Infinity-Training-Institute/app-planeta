@@ -73,48 +73,59 @@ class PaymentModalState extends State<PaymentModal> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => InvoiceScreen(
-            invoiceValue: totalAmount,
-            cashAmount:
-                _selectedPaymentMethod == 'Efectivo' ? enteredAmount : 0,
-            cardAmount: _selectedPaymentMethod == 'Mixto'
-                ? totalAmount - enteredAmount
-                : 0,
-            qrAmount: 0,
-            voucherAmount: 0,
-            changeAmount: changeAmount,
-            products: widget.productsData,
-          ),
+          builder:
+              (context) => InvoiceScreen(
+                invoiceValue: totalAmount,
+                cashAmount:
+                    _selectedPaymentMethod == 'Efectivo' ? enteredAmount : 0,
+                cardAmount:
+                    _selectedPaymentMethod == 'Mixto'
+                        ? totalAmount - enteredAmount
+                        : 0,
+                qrAmount: 0,
+                voucherAmount: 0,
+                changeAmount: changeAmount,
+                products: widget.productsData,
+              ),
         ),
       );
     }
 
     if (["Tarjeta"].contains(_selectedPaymentMethod)) {
       if (_selectedCardType == "Maestro" || _selectedCardType!.isEmpty) {
-        showAlert(context, "Error",
-            "Debes escoger un tipo de tarjeta para continuar");
+        showAlert(
+          context,
+          "Error",
+          "Debes escoger un tipo de tarjeta para continuar",
+        );
         return;
       }
 
       if (_authNumberCard.text.isEmpty) {
         showAlert(
-            context, "Error", "El numero de autorizacion no puede estar vacio");
+          context,
+          "Error",
+          "El numero de autorizacion no puede estar vacio",
+        );
         return;
       }
 
       // navegamos a la pantalla
       Navigator.push(
-          context,
-          MaterialPageRoute(
-              builder: (context) => InvoiceScreen(
-                    invoiceValue: totalAmount,
-                    cashAmount: 0,
-                    cardAmount: totalAmount,
-                    qrAmount: 0,
-                    voucherAmount: 0,
-                    changeAmount: 0,
-                    products: widget.productsData,
-                  )));
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => InvoiceScreen(
+                invoiceValue: totalAmount,
+                cashAmount: 0,
+                cardAmount: totalAmount,
+                qrAmount: 0,
+                voucherAmount: 0,
+                changeAmount: 0,
+                products: widget.productsData,
+              ),
+        ),
+      );
     }
 
     // qr banco
@@ -131,7 +142,10 @@ class PaymentModalState extends State<PaymentModal> {
 
       if (_authNumberController.text.isEmpty) {
         showAlert(
-            context, "Error", "Numero de autorizacion no debe estar vacio");
+          context,
+          "Error",
+          "Numero de autorizacion no debe estar vacio",
+        );
         return;
       }
 
@@ -139,21 +153,21 @@ class PaymentModalState extends State<PaymentModal> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => InvoiceScreen(
-            invoiceValue: totalAmount,
-            cashAmount: 0,
-            cardAmount: 0,
-            qrAmount: totalAmount,
-            voucherAmount: 0,
-            changeAmount: 0,
-            products: widget.productsData,
-          )
-        )
+          builder:
+              (context) => InvoiceScreen(
+                invoiceValue: totalAmount,
+                cashAmount: 0,
+                cardAmount: 0,
+                qrAmount: totalAmount,
+                voucherAmount: 0,
+                changeAmount: 0,
+                products: widget.productsData,
+              ),
+        ),
       );
     }
 
     // select type bono
-    
   }
 
   @override
@@ -176,12 +190,13 @@ class PaymentModalState extends State<PaymentModal> {
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
             value: _selectedPaymentMethod,
-            items: ['Efectivo', 'Tarjeta', 'QR Banco', 'Bono', 'Mixto']
-                .map(
-                  (method) =>
-                      DropdownMenuItem(value: method, child: Text(method)),
-                )
-                .toList(),
+            items:
+                ['Efectivo', 'Tarjeta', 'QR Banco', 'Bono', 'Mixto']
+                    .map(
+                      (method) =>
+                          DropdownMenuItem(value: method, child: Text(method)),
+                    )
+                    .toList(),
             onChanged: (value) {
               setState(() {
                 _selectedPaymentMethod = value!;
@@ -213,22 +228,25 @@ class PaymentModalState extends State<PaymentModal> {
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
               value: _selectedCardType,
-              items: [
-                "Maestro",
-                "Visa",
-                "MasterCard",
-                "American Express",
-                "Diners Club",
-                "Colsubsidio",
-                "Visa Electron",
-                "Nequi",
-                "Daviplata"
-              ]
-                  .map(
-                    (method) =>
-                        DropdownMenuItem(value: method, child: Text(method)),
-                  )
-                  .toList(),
+              items:
+                  [
+                        "Maestro",
+                        "Visa",
+                        "MasterCard",
+                        "American Express",
+                        "Diners Club",
+                        "Colsubsidio",
+                        "Visa Electron",
+                        "Nequi",
+                        "Daviplata",
+                      ]
+                      .map(
+                        (method) => DropdownMenuItem(
+                          value: method,
+                          child: Text(method),
+                        ),
+                      )
+                      .toList(),
               onChanged: (value) {
                 setState(() {
                   _selectedCardType = value!;
@@ -319,7 +337,9 @@ class PaymentModalState extends State<PaymentModal> {
 }
 
 void showAddProductDialog(
-    BuildContext context, TextEditingController referenceController) {
+  BuildContext context,
+  TextEditingController referenceController,
+) {
   final barcodeController = TextEditingController();
   final nameController = TextEditingController();
   final priceController = TextEditingController();
@@ -330,46 +350,53 @@ void showAddProductDialog(
   showDialog(
     context: context,
     builder: (BuildContext context) {
+      // Calcula el padding inferior según el teclado
+      final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
       return AlertDialog(
+        scrollable: true, // hace scroll si el contenido sobrepasa
         title: Text('Agregar Producto'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              readOnly: true,
-              decoration: InputDecoration(
-                labelText: 'Referencia',
-                border: OutlineInputBorder(),
+        content: Padding(
+          padding: EdgeInsets.only(bottom: bottomInset),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                readOnly: true,
+                decoration: InputDecoration(
+                  labelText: 'Referencia',
+                  border: OutlineInputBorder(),
+                ),
+                controller: referenciaController,
               ),
-              controller: referenciaController,
-            ),
-            SizedBox(height: 12),
-            TextField(
-              controller: barcodeController,
-              decoration: InputDecoration(
-                labelText: 'Código de Barras (EAN)',
-                border: OutlineInputBorder(),
+              SizedBox(height: 12),
+              TextField(
+                controller: barcodeController,
+                decoration: InputDecoration(
+                  labelText: 'Código de Barras (EAN)',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
               ),
-              keyboardType: TextInputType.number,
-            ),
-            SizedBox(height: 12),
-            TextField(
-              controller: nameController,
-              decoration: InputDecoration(
-                labelText: 'Nombre del Libro',
-                border: OutlineInputBorder(),
+              SizedBox(height: 12),
+              TextField(
+                controller: nameController,
+                decoration: InputDecoration(
+                  labelText: 'Nombre del Libro',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            SizedBox(height: 12),
-            TextField(
-              controller: priceController,
-              decoration: InputDecoration(
-                labelText: 'Precio de Venta',
-                border: OutlineInputBorder(),
+              SizedBox(height: 12),
+              TextField(
+                controller: priceController,
+                decoration: InputDecoration(
+                  labelText: 'Precio de Venta',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.number,
               ),
-              keyboardType: TextInputType.number,
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -386,16 +413,17 @@ void showAddProductDialog(
               if (ean.isEmpty || nombreLibro.isEmpty || precioText.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                      content: Text('Por favor complete todos los campos')),
+                    content: Text('Por favor complete todos los campos'),
+                  ),
                 );
                 return;
               }
 
               final precio = double.tryParse(precioText);
               if (precio == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Precio inválido')),
-                );
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(SnackBar(content: Text('Precio inválido')));
                 return;
               }
 
@@ -406,7 +434,7 @@ void showAddProductDialog(
                 precio: precio,
               );
 
-              referenceController.text = ean; // ✅ Aquí se actualiza
+              referenceController.text = ean;
 
               Navigator.pop(context);
               ScaffoldMessenger.of(context).showSnackBar(

@@ -9,11 +9,17 @@ class PromocionesDao {
       'Cod_Promocion': promocion.codPromocion,
       'Fecha_Promocion': promocion.fechaPromocion,
       'Hora_Desde': promocion.horaDesde,
+      'Minuto_Desde': promocion.minutoDesde,
       'Hora_Hasta': promocion.horaHasta,
       'Minuto_Hasta': promocion.minutoHasta,
       'Usuario': promocion.usuario,
       'Tipo_Promocion': promocion.tipoPromocion,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchPromociones() async {
+    final db = await AppDatabase.database;
+    return await db.query('Promociones');
   }
 
   Future<int> countPromociones() async {

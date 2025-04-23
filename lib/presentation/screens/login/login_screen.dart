@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import '../../../providers/auth_provider.dart';
 import '../home/home_screen.dart';
@@ -49,10 +48,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final authProvider = Provider.of<AuthProvider>(context);
     final theme = Theme.of(context);
-    final String fechaHora = DateFormat(
-      'EEEE, d MMM yyyy • hh:mm a', // hh -> Formato 12 horas, 'a' -> AM/PM
-      'es', // Establece el idioma en español
-    ).format(DateTime.now());
 
     return Scaffold(
       body: Stack(
@@ -164,21 +159,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ],
-              ),
-            ),
-          ),
-
-          // Footer con la fecha y hora
-          Positioned(
-            bottom: 20,
-            left: 0,
-            right: 0,
-            child: Text(
-              fechaHora,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                color: Colors.white.withOpacity(0.9),
               ),
             ),
           ),

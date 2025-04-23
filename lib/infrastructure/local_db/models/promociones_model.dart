@@ -2,6 +2,7 @@ class PromocionesModel {
   final int? codPromocion;
   final String? fechaPromocion;
   final String? horaDesde;
+  final String? minutoDesde;
   final String? horaHasta;
   final String? minutoHasta;
   final String? usuario;
@@ -11,6 +12,7 @@ class PromocionesModel {
     required this.codPromocion,
     required this.fechaPromocion,
     required this.horaDesde,
+    required this.minutoDesde,
     required this.horaHasta,
     required this.minutoHasta,
     required this.usuario,
@@ -23,6 +25,7 @@ class PromocionesModel {
       'Cod_Promocion': codPromocion,
       'Fecha_Promocion': fechaPromocion,
       'Hora_Desde': horaDesde,
+      'Minuto_Desde': minutoDesde,
       'Hora_Hasta': horaHasta,
       'Minuto_Hasta': minutoHasta,
       'Usuario': usuario,
@@ -36,6 +39,7 @@ class PromocionesModel {
       codPromocion: map['Cod_Promocion'] as int?,
       fechaPromocion: map['Fecha_Promocion'],
       horaDesde: map['Hora_Desde'],
+      minutoDesde: map['Minuto_Desde'],
       horaHasta: map['Hora_Hasta'],
       minutoHasta: map['Minuto_Hasta'],
       usuario: map['Usuario'],
