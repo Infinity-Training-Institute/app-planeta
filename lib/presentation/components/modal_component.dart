@@ -168,78 +168,126 @@ class PaymentModalState extends State<PaymentModal> {
     }
 
     // select type bono
+    if (["Bono"].contains(_selectedPaymentMethod)) {
+      if (_bonoValueController.text.isEmpty) {
+        showAlert(context, "Error", "El valor del bono no debe estar vacio");
+        return;
+      }
+
+      if (_bonoQuantityController.text.isEmpty) {
+        showAlert(context, "Error", "La cantidad de bonos no debe estar vacio");
+        return;
+      }
+
+      int bonoValue = int.tryParse(_bonoValueController.text) ?? 0;
+      int bonoQuantity = int.tryParse(_bonoQuantityController.text) ?? 0;
+
+      if (bonoValue * bonoQuantity < totalAmount) {
+        showAlert(
+          context,
+          "Error",
+          "El valor del bono no es suficiente para cubrir el total",
+        );
+        return;
+      }
+
+      // navegamos a la pantalla
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => InvoiceScreen(
+                invoiceValue: totalAmount,
+                cashAmount: 0,
+                cardAmount: 0,
+                qrAmount: 0,
+                voucherAmount: bonoValue * bonoQuantity,
+                changeAmount: 0,
+                products: widget.productsData,
+              ),
+        ),
+      );
+    }
+
+    // select type mixto
+    if (["Mixto"].contains(_selectedPaymentMethod)) {
+      if (_selectedCardType == "Maestro" || _selectedCardType!.isEmpty) {
+        showAlert(
+          context,
+          "Error",
+          "Debes escoger un tipo de tarjeta para continuar",
+        );
+        return;
+      }
+
+      if (_authNumberCard.text.isEmpty) {
+        showAlert(
+          context,
+          "Error",
+          "El numero de autorizacion no puede estar vacio",
+        );
+        return;
+      }
+      
+      if (_phoneNumberController.text.isEmpty) {
+        showAlert(context, "Error", "Numero de telefono no debe estar vacio");
+        return;
+      }
+
+      if (_phoneNumberController.text.length < 10) {
+        showAlert(context, "Warning", "Numero de telefono invalido");
+        return;
+      }
+
+      if (_authNumberController.text.isEmpty) {
+        showAlert(
+          context,
+          "Error",
+          "Numero de autorizacion no debe estar vacio",
+        );
+        return;
+      }
+
+      if (_bonoValueController.text.isEmpty) {
+        showAlert(context, "Error", "El valor del bono no debe estar vacio");
+        return;
+      }
+
+      if (_bonoQuantityController.text.isEmpty) {
+        showAlert(context, "Error", "La cantidad de bonos no debe estar vacio");
+        return;
+      }
+
+      // TODO: terminar la logica de pago mixto
+
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Seleccionar Método de Pago'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            controller: _amountController,
-            keyboardType: TextInputType.number,
-            readOnly: true,
-            decoration: const InputDecoration(
-              labelText: 'Total a Pagar',
-              prefixIcon: Icon(Icons.attach_money),
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          DropdownButtonFormField<String>(
-            value: _selectedPaymentMethod,
-            items:
-                ['Efectivo', 'Tarjeta', 'QR Banco', 'Bono', 'Mixto']
-                    .map(
-                      (method) =>
-                          DropdownMenuItem(value: method, child: Text(method)),
-                    )
-                    .toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedPaymentMethod = value!;
-                _selectedCardType = null;
-              });
-            },
-            decoration: const InputDecoration(
-              labelText: 'Método de Pago',
-              border: OutlineInputBorder(),
-            ),
-          ),
-
-          // selectedPaymentMethod == Efectivo
-          if (_selectedPaymentMethod == "Efectivo") ...[
+      content: SingleChildScrollView(
+        // Add SingleChildScrollView here
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
             const SizedBox(height: 16),
             TextField(
-              controller: _amountMoneyController,
+              controller: _amountController,
               keyboardType: TextInputType.number,
+              readOnly: true,
               decoration: const InputDecoration(
                 labelText: 'Total a Pagar',
                 prefixIcon: Icon(Icons.attach_money),
                 border: OutlineInputBorder(),
               ),
             ),
-          ],
-
-          // selectedmethod == tarjeta
-          if (_selectedPaymentMethod == "Tarjeta") ...[
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _selectedCardType,
+              value: _selectedPaymentMethod,
               items:
-                  [
-                        "Maestro",
-                        "Visa",
-                        "MasterCard",
-                        "American Express",
-                        "Diners Club",
-                        "Colsubsidio",
-                        "Visa Electron",
-                        "Nequi",
-                        "Daviplata",
-                      ]
+                  ['Efectivo', 'Tarjeta', 'QR Banco', 'Bono', 'Mixto']
                       .map(
                         (method) => DropdownMenuItem(
                           value: method,
@@ -249,74 +297,129 @@ class PaymentModalState extends State<PaymentModal> {
                       .toList(),
               onChanged: (value) {
                 setState(() {
-                  _selectedCardType = value!;
+                  _selectedPaymentMethod = value!;
+                  _selectedCardType = null;
                 });
               },
               decoration: const InputDecoration(
-                labelText: 'Tipo de tarjeta',
+                labelText: 'Método de Pago',
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _authNumberCard,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Numero De Autorización',
-                prefixIcon: Icon(Icons.done),
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
 
-          // selected type qr banco
-          if (_selectedPaymentMethod == "QR Banco") ...[
-            const SizedBox(height: 16),
-            TextField(
-              controller: _phoneNumberController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Numero de celular',
-                prefixIcon: Icon(Icons.phone),
-                border: OutlineInputBorder(),
+            // selectedPaymentMethod == Efectivo
+            if (_selectedPaymentMethod == "Efectivo" ||
+                _selectedPaymentMethod == "Mixto") ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: _amountMoneyController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Total a Pagar',
+                  prefixIcon: Icon(Icons.attach_money),
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _authNumberController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Numero De Autorización',
-                prefixIcon: Icon(Icons.done),
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
+            ],
 
-          // selected type bono
-          if (_selectedPaymentMethod == "Bono") ...[
-            const SizedBox(height: 16),
-            TextField(
-              controller: _bonoValueController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Valor Del Bono',
-                prefixIcon: Icon(Icons.check),
-                border: OutlineInputBorder(),
+            // selectedmethod == tarjeta
+            if (_selectedPaymentMethod == "Tarjeta" ||
+                _selectedPaymentMethod == "Mixto") ...[
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedCardType,
+                items:
+                    [
+                          "Maestro",
+                          "Visa",
+                          "MasterCard",
+                          "American Express",
+                          "Diners Club",
+                          "Colsubsidio",
+                          "Visa Electron",
+                          "Nequi",
+                          "Daviplata",
+                        ]
+                        .map(
+                          (method) => DropdownMenuItem(
+                            value: method,
+                            child: Text(method),
+                          ),
+                        )
+                        .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCardType = value!;
+                  });
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Tipo de tarjeta',
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _bonoQuantityController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Cantidad del bono',
-                prefixIcon: Icon(Icons.production_quantity_limits),
-                border: OutlineInputBorder(),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _authNumberCard,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Numero De Autorización',
+                  prefixIcon: Icon(Icons.done),
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
+            ],
+
+            // selected type qr banco
+            if (_selectedPaymentMethod == "QR Banco" ||
+                _selectedPaymentMethod == "Mixto") ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: _phoneNumberController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Numero de celular',
+                  prefixIcon: Icon(Icons.phone),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _authNumberController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Numero De Autorización',
+                  prefixIcon: Icon(Icons.done),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+
+            // selected type bono
+            if (_selectedPaymentMethod == "Bono" ||
+                _selectedPaymentMethod == "Mixto") ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: _bonoValueController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Valor Del Bono',
+                  prefixIcon: Icon(Icons.check),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _bonoQuantityController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Cantidad del bono',
+                  prefixIcon: Icon(Icons.production_quantity_limits),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
           ],
-        ],
+        ),
       ),
       actions: [
         TextButton(
@@ -436,10 +539,12 @@ void showAddProductDialog(
 
               referenceController.text = ean;
 
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('✅ Producto agregado correctamente')),
-              );
+              if (context.mounted) {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('✅ Producto agregado correctamente')),
+                );
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
             child: Text('Agregar', style: TextStyle(color: Colors.white)),
