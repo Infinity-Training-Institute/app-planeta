@@ -56,9 +56,6 @@ Future<void> requestPermissions() async {
 
   // Almacenamiento
   await Permission.storage.request();
-
-  // Ubicación (por si tu impresora térmica necesita escanear dispositivos)
-  await Permission.location.request();
 }
 
 class MyApp extends StatelessWidget {

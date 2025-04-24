@@ -23,6 +23,8 @@ class PaymentModalState extends State<PaymentModal> {
   String? _selectedCardType;
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _amountMoneyController = TextEditingController();
+  final TextEditingController _amountCardController = TextEditingController();
+  final TextEditingController _amountQrController = TextEditingController();
   final TextEditingController _authNumberCard = TextEditingController();
   final TextEditingController _authNumberController = TextEditingController();
   final TextEditingController _phoneNumberController = TextEditingController();
@@ -69,7 +71,6 @@ class PaymentModalState extends State<PaymentModal> {
       int changeAmount =
           enteredAmount > totalAmount ? enteredAmount - totalAmount : 0;
 
-      // Navegar a la pantalla de InvoiceSummary con el cambio calculado
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -90,177 +91,6 @@ class PaymentModalState extends State<PaymentModal> {
         ),
       );
     }
-
-    if (["Tarjeta"].contains(_selectedPaymentMethod)) {
-      if (_selectedCardType == "Maestro" || _selectedCardType!.isEmpty) {
-        showAlert(
-          context,
-          "Error",
-          "Debes escoger un tipo de tarjeta para continuar",
-        );
-        return;
-      }
-
-      if (_authNumberCard.text.isEmpty) {
-        showAlert(
-          context,
-          "Error",
-          "El numero de autorizacion no puede estar vacio",
-        );
-        return;
-      }
-
-      // navegamos a la pantalla
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder:
-              (context) => InvoiceScreen(
-                invoiceValue: totalAmount,
-                cashAmount: 0,
-                cardAmount: totalAmount,
-                qrAmount: 0,
-                voucherAmount: 0,
-                changeAmount: 0,
-                products: widget.productsData,
-              ),
-        ),
-      );
-    }
-
-    // qr banco
-    if (["QR Banco"].contains(_selectedPaymentMethod)) {
-      if (_phoneNumberController.text.isEmpty) {
-        showAlert(context, "Error", "Numero de telefono no debe estar vacio");
-        return;
-      }
-
-      if (_phoneNumberController.text.length < 10) {
-        showAlert(context, "Warning", "Numero de telefono invalido");
-        return;
-      }
-
-      if (_authNumberController.text.isEmpty) {
-        showAlert(
-          context,
-          "Error",
-          "Numero de autorizacion no debe estar vacio",
-        );
-        return;
-      }
-
-      // navegamos a la pantalla
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder:
-              (context) => InvoiceScreen(
-                invoiceValue: totalAmount,
-                cashAmount: 0,
-                cardAmount: 0,
-                qrAmount: totalAmount,
-                voucherAmount: 0,
-                changeAmount: 0,
-                products: widget.productsData,
-              ),
-        ),
-      );
-    }
-
-    // select type bono
-    if (["Bono"].contains(_selectedPaymentMethod)) {
-      if (_bonoValueController.text.isEmpty) {
-        showAlert(context, "Error", "El valor del bono no debe estar vacio");
-        return;
-      }
-
-      if (_bonoQuantityController.text.isEmpty) {
-        showAlert(context, "Error", "La cantidad de bonos no debe estar vacio");
-        return;
-      }
-
-      int bonoValue = int.tryParse(_bonoValueController.text) ?? 0;
-      int bonoQuantity = int.tryParse(_bonoQuantityController.text) ?? 0;
-
-      if (bonoValue * bonoQuantity < totalAmount) {
-        showAlert(
-          context,
-          "Error",
-          "El valor del bono no es suficiente para cubrir el total",
-        );
-        return;
-      }
-
-      // navegamos a la pantalla
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder:
-              (context) => InvoiceScreen(
-                invoiceValue: totalAmount,
-                cashAmount: 0,
-                cardAmount: 0,
-                qrAmount: 0,
-                voucherAmount: bonoValue * bonoQuantity,
-                changeAmount: 0,
-                products: widget.productsData,
-              ),
-        ),
-      );
-    }
-
-    // select type mixto
-    if (["Mixto"].contains(_selectedPaymentMethod)) {
-      if (_selectedCardType == "Maestro" || _selectedCardType!.isEmpty) {
-        showAlert(
-          context,
-          "Error",
-          "Debes escoger un tipo de tarjeta para continuar",
-        );
-        return;
-      }
-
-      if (_authNumberCard.text.isEmpty) {
-        showAlert(
-          context,
-          "Error",
-          "El numero de autorizacion no puede estar vacio",
-        );
-        return;
-      }
-      
-      if (_phoneNumberController.text.isEmpty) {
-        showAlert(context, "Error", "Numero de telefono no debe estar vacio");
-        return;
-      }
-
-      if (_phoneNumberController.text.length < 10) {
-        showAlert(context, "Warning", "Numero de telefono invalido");
-        return;
-      }
-
-      if (_authNumberController.text.isEmpty) {
-        showAlert(
-          context,
-          "Error",
-          "Numero de autorizacion no debe estar vacio",
-        );
-        return;
-      }
-
-      if (_bonoValueController.text.isEmpty) {
-        showAlert(context, "Error", "El valor del bono no debe estar vacio");
-        return;
-      }
-
-      if (_bonoQuantityController.text.isEmpty) {
-        showAlert(context, "Error", "La cantidad de bonos no debe estar vacio");
-        return;
-      }
-
-      // TODO: terminar la logica de pago mixto
-
-    }
   }
 
   @override
@@ -268,7 +98,6 @@ class PaymentModalState extends State<PaymentModal> {
     return AlertDialog(
       title: const Text('Seleccionar Método de Pago'),
       content: SingleChildScrollView(
-        // Add SingleChildScrollView here
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -307,24 +136,21 @@ class PaymentModalState extends State<PaymentModal> {
               ),
             ),
 
-            // selectedPaymentMethod == Efectivo
-            if (_selectedPaymentMethod == "Efectivo" ||
-                _selectedPaymentMethod == "Mixto") ...[
+            // Efectivo
+            if (_selectedPaymentMethod == 'Efectivo') ...[
               const SizedBox(height: 16),
               TextField(
                 controller: _amountMoneyController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Total a Pagar',
-                  prefixIcon: Icon(Icons.attach_money),
+                  labelText: 'Monto Efectivo',
                   border: OutlineInputBorder(),
                 ),
               ),
             ],
 
-            // selectedmethod == tarjeta
-            if (_selectedPaymentMethod == "Tarjeta" ||
-                _selectedPaymentMethod == "Mixto") ...[
+            // tarjeta
+            if (_selectedPaymentMethod == 'Tarjeta') ...[
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
                 value: _selectedCardType,
@@ -363,47 +189,32 @@ class PaymentModalState extends State<PaymentModal> {
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Numero De Autorización',
-                  prefixIcon: Icon(Icons.done),
                   border: OutlineInputBorder(),
                 ),
               ),
             ],
 
-            // selected type qr banco
-            if (_selectedPaymentMethod == "QR Banco" ||
-                _selectedPaymentMethod == "Mixto") ...[
+            //QR Banco
+            if (_selectedPaymentMethod == 'QR Banco') ...[
               const SizedBox(height: 16),
               TextField(
                 controller: _phoneNumberController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Numero de celular',
-                  prefixIcon: Icon(Icons.phone),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: _authNumberController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Numero De Autorización',
-                  prefixIcon: Icon(Icons.done),
                   border: OutlineInputBorder(),
                 ),
               ),
             ],
 
-            // selected type bono
-            if (_selectedPaymentMethod == "Bono" ||
-                _selectedPaymentMethod == "Mixto") ...[
+            // Bono
+            if (_selectedPaymentMethod == 'Bono') ...[
               const SizedBox(height: 16),
               TextField(
                 controller: _bonoValueController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Valor Del Bono',
-                  prefixIcon: Icon(Icons.check),
+                  labelText: 'Valor del Bono',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -412,8 +223,106 @@ class PaymentModalState extends State<PaymentModal> {
                 controller: _bonoQuantityController,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
-                  labelText: 'Cantidad del bono',
-                  prefixIcon: Icon(Icons.production_quantity_limits),
+                  labelText: 'Cantidad de Bonos',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+
+            // Mixto
+            if (_selectedPaymentMethod == 'Mixto') ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: _amountMoneyController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Monto Efectivo',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _amountCardController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Monto Tarjeta',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedCardType,
+                items:
+                    [
+                          "Maestro",
+                          "Visa",
+                          "MasterCard",
+                          "American Express",
+                          "Diners Club",
+                          "Colsubsidio",
+                          "Visa Electron",
+                          "Nequi",
+                          "Daviplata",
+                        ]
+                        .map(
+                          (method) => DropdownMenuItem(
+                            value: method,
+                            child: Text(method),
+                          ),
+                        )
+                        .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCardType = value!;
+                  });
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Tipo de tarjeta',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _authNumberCard,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Numero De Autorización',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _bonoValueController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Valor del Bono',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _bonoQuantityController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Cantidad de Bonos',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _amountQrController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Monto QR',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _phoneNumberController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Numero de celular',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -421,6 +330,7 @@ class PaymentModalState extends State<PaymentModal> {
           ],
         ),
       ),
+
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context),

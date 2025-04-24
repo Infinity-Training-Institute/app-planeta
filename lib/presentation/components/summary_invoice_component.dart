@@ -39,29 +39,26 @@ class InvoiceScreen extends StatelessWidget {
         title: const Text('Resumen de Factura'),
         centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildCreateCustomerOption(),
-              ValueListenableBuilder<bool>(
-                valueListenable: _createCustomerNotifier,
-                builder: (context, createCustomer, child) {
-                  return createCustomer
-                      ? _buildCustomerForm()
-                      : const SizedBox.shrink();
-                },
-              ),
-              const SizedBox(height: 16),
-              _buildInvoiceCard(),
-              const SizedBox(height: 16),
-              _buildTransactionSummary(),
-              const SizedBox(height: 24),
-              _buildActionButtons(context),
-            ],
-          ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildCreateCustomer(),
+            ValueListenableBuilder<bool>(
+              valueListenable: _createCustomerNotifier,
+              builder: (context, createCustomer, child) {
+                return createCustomer
+                    ? _buildCustomerForm()
+                    : const SizedBox.shrink();
+              },
+            ),
+            const SizedBox(height: 16),
+            _buildInvoiceCard(),
+            const SizedBox(height: 16),
+            _buildTransactionSummary(),
+            const SizedBox(height: 24),
+            _buildActionButtons(context),
+          ],
         ),
       ),
     );
@@ -157,104 +154,99 @@ class InvoiceScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCreateCustomerOption() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const Text(
-          'Desea Crear Cliente',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(width: 10),
-        Row(
-          children: [
-            ValueListenableBuilder<bool>(
-              valueListenable: _createCustomerNotifier,
-              builder: (context, createCustomer, child) {
-                return Row(
-                  children: [
-                    Radio<bool>(
-                      value: true,
-                      groupValue: createCustomer,
-                      onChanged: (val) => _createCustomerNotifier.value = val!,
-                    ),
-                    const Text("Sí"),
-                    Radio<bool>(
-                      value: false,
-                      groupValue: createCustomer,
-                      onChanged: (val) => _createCustomerNotifier.value = val!,
-                    ),
-                    const Text("No"),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
-      ],
+  Widget _buildCreateCustomer() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text(
+            'Desea Crear Cliente',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          ValueListenableBuilder<bool>(
+            valueListenable: _createCustomerNotifier,
+            builder: (context, createCustomer, child) {
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Radio<bool>(
+                    value: true,
+                    groupValue: createCustomer,
+                    onChanged: (val) => _createCustomerNotifier.value = val!,
+                  ),
+                  const Text("Sí"),
+                  Radio<bool>(
+                    value: false,
+                    groupValue: createCustomer,
+                    onChanged: (val) => _createCustomerNotifier.value = val!,
+                  ),
+                  const Text("No"),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 
+  // form cliente
   Widget _buildCustomerForm() {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Información del Cliente',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: InputDecoration(
-                labelText: 'Nombre',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+    return Center(
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Tipo de Persona',
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              decoration: InputDecoration(
-                labelText: 'Número de Teléfono',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
+              const SizedBox(height: 8),
+              ValueListenableBuilder<String>(
+                valueListenable: _selectedPersonType,
+                builder: (context, selectedValue, child) {
+                  return DropdownButtonFormField<String>(
+                    value: selectedValue,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: "Natural",
+                        child: Text("Natural"),
+                      ),
+                      DropdownMenuItem(
+                        value: "Jurídica",
+                        child: Text("Jurídica"),
+                      ),
+                    ],
+                    onChanged: (value) => _selectedPersonType.value = value!,
+                  );
+                },
               ),
-              keyboardType: TextInputType.phone,
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'Tipo de Persona',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
-            ValueListenableBuilder<String>(
-              valueListenable: _selectedPersonType,
-              builder: (context, selectedValue, child) {
-                return DropdownButtonFormField<String>(
-                  value: selectedValue,
-                  decoration: InputDecoration(
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: "Natural", child: Text("Natural")),
-                    DropdownMenuItem(
-                      value: "Jurídica",
-                      child: Text("Jurídica"),
-                    ),
-                  ],
-                  onChanged: (value) => _selectedPersonType.value = value!,
-                );
-              },
-            ),
-          ],
+              const SizedBox(height: 16),
+
+              _buildInputField("Cédula"),
+              _buildInputField("P. Apellido"),
+              _buildInputField("S. Apellido"),
+              _buildInputField("P. Nombre"),
+              _buildInputField("S. Nombre"),
+              _buildInputField(
+                "Correo Electrónico",
+                keyboardType: TextInputType.emailAddress,
+              ),
+              _buildInputField("Dirección"),
+              _buildInputField("Ciudad"),
+              _buildInputField("Teléfono", keyboardType: TextInputType.phone),
+            ],
+          ),
         ),
       ),
     );
@@ -311,6 +303,22 @@ class InvoiceScreen extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildInputField(
+    String label, {
+    TextInputType keyboardType = TextInputType.text,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16.0),
+      child: TextFormField(
+        keyboardType: keyboardType,
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+      ),
     );
   }
 }

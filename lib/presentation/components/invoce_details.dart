@@ -215,65 +215,50 @@ class _InvoceDetails extends State<InvoceDetails> {
         final minutosHastaRaw = promo['Minuto_Hasta'];
 
         final fechaPromo = DateTime.parse(fechaRaw);
-
-        // Asegurarse que la promoción es para hoy
         final now = DateTime.now();
+
+        // 1) Asegurarnos de que la promo sea para hoy
         final esHoy =
             now.year == fechaPromo.year &&
             now.month == fechaPromo.month &&
             now.day == fechaPromo.day;
 
         if (!esHoy) {
-          // Si la promoción no es para hoy, calculamos las promociones normales
           calcularPromociones();
           return;
         }
 
-        // Hora de inicio de la promoción
+        // 2) Construir DateTime de inicio (p.ej. 9:30 AM)
+        final int desdeH = int.parse(horaDesdeRaw.toString());
+        final int desdeM = int.parse((minutosDesdeRaw ?? '0').toString());
         final horaDesdeDateTime = DateTime(
           fechaPromo.year,
           fechaPromo.month,
           fechaPromo.day,
-          int.parse(horaDesdeRaw.toString()),
-          int.parse((minutosDesdeRaw ?? '0').toString()),
+          desdeH,
+          desdeM,
         );
 
-        // Hora de fin de la promoción (convertir 6:50 AM a 18:50 PM)
+        // 3) Construir DateTime de fin (p.ej. 6:50 PM)
+        final int hastaRawH = int.parse(horaHastaRaw.toString());
+        final int hastaRawM = int.parse((minutosHastaRaw ?? '0').toString());
+        // si la hora de fin es <= hora de inicio, la tratamos como PM
+        final int hastaH24 = (hastaRawH <= desdeH) ? hastaRawH + 12 : hastaRawH;
         final horaHastaDateTime = DateTime(
           fechaPromo.year,
           fechaPromo.month,
           fechaPromo.day,
-          int.parse(horaHastaRaw.toString()) == 6
-              ? 18
-              : int.parse(horaHastaRaw.toString()), // Ajustar para PM
-          int.parse((minutosHastaRaw ?? '0').toString()),
+          hastaH24,
+          hastaRawM,
         );
 
-        // Si la hora de fin es antes que la de inicio, es porque cruza medianoche.
-        final ajustadaHoraHastaDateTime =
-            horaHastaDateTime.isBefore(horaDesdeDateTime)
-                ? horaHastaDateTime.add(
-                  const Duration(days: 1),
-                ) // Se ajusta al día siguiente
-                : horaHastaDateTime;
-
-        // DEPURACIÓN: Imprimir valores para ver lo que está sucediendo
-        print('Hora desde: $horaDesdeDateTime');
-        print('Hora hasta: $horaHastaDateTime');
-        print('Hora ajustada hasta: $ajustadaHoraHastaDateTime');
-        print('Ahora: $now');
-
-        // Comprobamos si la hora actual está dentro del rango de la promoción
-        if (now.isAfter(horaDesdeDateTime) &&
-            now.isBefore(ajustadaHoraHastaDateTime)) {
-          // La promoción está activa, calculamos las promociones especiales
-          calcularPromocionesEspeciales();
-        } else if (now.isAfter(ajustadaHoraHastaDateTime)) {
-          // Si ahora es después de la hora ajustada de fin, calculamos promociones normales
+        // 4) Validar rango
+        if (now.isBefore(horaDesdeDateTime) || now.isAfter(horaHastaDateTime)) {
+          // fuera de rango: hora actual < inicio  o > fin
           calcularPromociones();
         } else {
-          // En caso de que no esté en el rango ni antes, también se calculan promociones normales
-          calcularPromociones();
+          // entre horaDesde y horaHasta
+          calcularPromocionesEspeciales();
         }
       } else {
         calcularPromociones();
@@ -424,10 +409,14 @@ class _InvoceDetails extends State<InvoceDetails> {
       return;
     }
 
+    // Actualizamos el total final
+    totalFinal = products.fold<int>(
+      0,
+      (sum, item) => sum + (item.total > 0 ? item.total.toInt() : 0),
+    );
+
     // Si hay promociones generales (en tu servicio), las manejarías aquí...
     setState(() {});
-
-    // limpiamos el products actual y le damos el modificado
   }
 
   //funcion por si hay promocion 50% y 3x2
@@ -532,6 +521,12 @@ class _InvoceDetails extends State<InvoceDetails> {
       if (a.fairPrice == a.price && b.fairPrice < b.price) return -1;
       return 0;
     });
+
+    // Actualizamos el total final
+    totalFinal = products.fold<int>(
+      0,
+      (sum, item) => sum + (item.total > 0 ? item.total.toInt() : 0),
+    );
 
     setState(() {});
   }
@@ -671,7 +666,6 @@ class _InvoceDetails extends State<InvoceDetails> {
 
     final fechaPromo = DateTime.parse(fechaRaw);
 
-    // Asegúrate que la promoción es para hoy
     final ahora = DateTime.now();
     final esHoy =
         ahora.year == fechaPromo.year &&
@@ -679,7 +673,7 @@ class _InvoceDetails extends State<InvoceDetails> {
         ahora.day == fechaPromo.day;
 
     if (!esHoy) {
-      // La promoción no es para hoy
+      // No es para hoy
       setState(() {
         promoText = '';
         horaDesde = '';
@@ -690,16 +684,27 @@ class _InvoceDetails extends State<InvoceDetails> {
       return;
     }
 
+    // Hora de inicio de la promoción: 9:30 AM
+    final horaDesdeDateTime = DateTime(
+      fechaPromo.year,
+      fechaPromo.month,
+      fechaPromo.day,
+      int.parse(horaDesdeRaw.toString()),
+      int.parse((minutosDesdeRaw ?? '0').toString()),
+    );
+
+    // Hora de fin de la promoción: 6:50 PM (convertir "6" a "18")
     final horaHastaDateTime = DateTime(
       fechaPromo.year,
       fechaPromo.month,
       fechaPromo.day,
-      18, // 6:50 PM
-      50, // 50 minutos
+      int.parse(horaHastaRaw.toString()) +
+          (int.parse(horaHastaRaw.toString()) < 12 ? 12 : 0),
+      int.parse((minutosHastaRaw ?? '0').toString()),
     );
 
-    if (ahora.isAfter(horaHastaDateTime)) {
-      // Ya pasó la hora final de la promo
+    // Si antes de empezar o después de terminar, ocultar
+    if (ahora.isBefore(horaDesdeDateTime) || ahora.isAfter(horaHastaDateTime)) {
       setState(() {
         promoText = '';
         horaDesde = '';
@@ -708,7 +713,7 @@ class _InvoceDetails extends State<InvoceDetails> {
         formattedDate = '';
       });
     } else {
-      // Promo aún válida
+      // Estamos entre 9:30 AM y 6:50 PM
       setState(() {
         promoText =
             promo['Tipo_Promocion'] == '3x2'
@@ -716,9 +721,9 @@ class _InvoceDetails extends State<InvoceDetails> {
                 : '50% en segundo producto';
 
         horaDesde =
-            "$horaDesdeRaw:${(minutosDesdeRaw ?? 0).toString().padLeft(2, '0')}";
+            "${horaDesdeRaw.toString().padLeft(2, '0')}:${(minutosDesdeRaw ?? 0).toString().padLeft(2, '0')}";
         horaHasta =
-            "$horaHastaRaw:${(minutosHastaRaw ?? 0).toString().padLeft(2, '0')}";
+            "${horaHastaRaw.toString().padLeft(2, '0')}:${(minutosHastaRaw ?? 0).toString().padLeft(2, '0')}";
 
         promoDate = fechaPromo;
         formattedDate = DateFormat(
