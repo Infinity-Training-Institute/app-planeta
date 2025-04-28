@@ -230,6 +230,7 @@ class SyncronizedData with ChangeNotifier {
               clusua: item['clusua'],
               cltipo: item['cltipo'],
               clfecha: item['clfecha'],
+              cl_nube: item['cl_nube'] ?? '', // Manejar el campo cl_nube
             ),
           ),
           insertData<ProductsModel>(

@@ -8,6 +8,7 @@ class DatosClienteModel {
   final String clciud;
   final String cltele;
   final String clusua;
+  final String cl_nube;
   final String cltipo;
   final String clfecha;
 
@@ -21,6 +22,7 @@ class DatosClienteModel {
     required this.clciud,
     required this.cltele,
     required this.clusua,
+    required this.cl_nube,
     required this.cltipo,
     required this.clfecha,
   });
@@ -36,6 +38,7 @@ class DatosClienteModel {
       'cldire': cldire,
       'clciud': clciud,
       'cltele': cltele,
+      'cl_nube': cl_nube,
       'clusua': clusua,
       'cltipo': cltipo,
       'clfecha': clfecha,
@@ -53,6 +56,7 @@ class DatosClienteModel {
       cldire: map['cldire'] ?? '',
       clciud: map['clciud'] ?? '',
       cltele: map['cltele'] ?? '',
+      cl_nube: map['cl_nube'] ?? '', // Manejar el campo cl_nube
       clusua: map['clusua'] ?? '',
       cltipo: map['cltipo'] ?? '',
       clfecha: map['clfecha'] ?? '',

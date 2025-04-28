@@ -13,10 +13,10 @@ class AppDatabase {
 
   static Future<Database> _initDatabase() async {
     // Obtén la ruta de la base de datos
-    // String path = join(await getDatabasesPath(), 'app_database.db');
+    String path = join(await getDatabasesPath(), 'app_database.db');
 
     // Elimina la base de datos
-    // await deleteDatabase(path);
+    await deleteDatabase(path);
     return openDatabase(
       join(await getDatabasesPath(), 'app_database.db'),
       version: 2,
@@ -243,6 +243,7 @@ class AppDatabase {
             clciud TEXT NOT NULL, -- Ciudad
             cltele TEXT NOT NULL, -- Teléfono (bigint en MySQL → INTEGER en SQLite)
             clusua TEXT NOT NULL, -- Usuario
+            cl_nube TEXT NOT NULL, -- ID en la nube (varchar en MySQL → TEXT en SQLite)
             cltipo TEXT NOT NULL, -- Tipo de cliente
             clfecha TEXT NOT NULL -- Fecha (date en MySQL → TEXT en SQLite, formato 'YYYY-MM-DD')
           ) 

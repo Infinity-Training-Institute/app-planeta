@@ -71,22 +71,22 @@ class PaymentModalState extends State<PaymentModal> {
       int changeAmount =
           enteredAmount > totalAmount ? enteredAmount - totalAmount : 0;
 
+      print(changeAmount);
+
       Navigator.push(
         context,
         MaterialPageRoute(
           builder:
-              (context) => InvoiceScreen(
+              (context) => SummaryInvoiceComponent(
                 invoiceValue: totalAmount,
-                cashAmount:
-                    _selectedPaymentMethod == 'Efectivo' ? enteredAmount : 0,
-                cardAmount:
-                    _selectedPaymentMethod == 'Mixto'
-                        ? totalAmount - enteredAmount
-                        : 0,
-                qrAmount: 0,
-                voucherAmount: 0,
-                changeAmount: changeAmount,
+                payments: [
+                  PaymentEntry(
+                    method: _selectedPaymentMethod,
+                    amount: enteredAmount,
+                  ),
+                ],
                 products: widget.productsData,
+                changeAmount: changeAmount,
               ),
         ),
       );

@@ -6,18 +6,20 @@ class DatosClienteDao {
     final db = await AppDatabase.database;
 
     return await db.insert('mclien', {
-      "clcecl": cliente.clcecl,
-      "clnmcl": cliente.clnmcl,
-      "clpacl": cliente.clpacl,
-      "clsacl": cliente.clsacl.isNotEmpty ? cliente.clsacl : '',
-      "clmail": cliente.clmail,
-      "cldire": cliente.cldire,
-      "clciud": cliente.clciud,
-      "cltele": cliente.cltele,
-      "clusua": cliente.clusua,
+      "clcecl": cliente.clcecl, // cedula del cliente
+      "clnmcl": cliente.clnmcl, // nombre del cliente
+      "clpacl": cliente.clpacl, // apellido del cliente
+      "clsacl":
+          cliente.clsacl.isNotEmpty ? cliente.clsacl : '', // segundo apellido
+      "clmail": cliente.clmail, // correo del cliente
+      "cldire": cliente.cldire, // direccion del cliente
+      "clciud": cliente.clciud, // ciudad del cliente
+      "cltele": cliente.cltele, // telefono del cliente
+      "clusua": cliente.clusua, // usuario que crea el cliente
+      'cl_nube': 0,
       "cltipo":
           cliente.cltipo.isNotEmpty ? cliente.cltipo : '', // Manejar vacío
-      "clfecha": cliente.clfecha,
+      "clfecha": cliente.clfecha, // fecha de creación del cliente
     });
   }
 
@@ -36,6 +38,7 @@ class DatosClienteDao {
         clciud: maps[i]['clciud'],
         cltele: maps[i]['cltele'],
         clusua: maps[i]['clusua'],
+        cl_nube: maps[i]['cl_nube'] ?? '', // Manejar el campo cl_nube
         cltipo: maps[i]['cltipo'],
         clfecha: maps[i]['clfecha'],
       );
