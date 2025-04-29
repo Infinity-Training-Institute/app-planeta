@@ -11,9 +11,22 @@ import 'package:printing/printing.dart';
 
 class PaymentEntry {
   final String method; // "Efectivo", "Tarjeta", "QR", …
+  final String? reference; // Referencia de pago (opcional)
   final int amount; // Valor pagado
+  final int? numberPhone; // Número de teléfono (opcional)
+  final int? numberBono; // Número de bono (opcional)
+  final int? totalBono; // Total del bono (opcional)
+  final int? numberOfBonoUsed; // Número de bono usado (opcional)
 
-  PaymentEntry({required this.method, required this.amount});
+  PaymentEntry(
+    this.numberPhone,
+    this.numberBono,
+    this.totalBono,
+    this.numberOfBonoUsed, {
+    required this.method,
+    required this.amount,
+    this.reference,
+  });
 }
 
 class SummaryInvoiceComponent extends StatelessWidget {
@@ -401,6 +414,7 @@ class SummaryInvoiceComponent extends StatelessWidget {
                 datosClientes,
                 invoiceValue,
                 payments,
+                "1",
                 changeAmount,
               ); // Generar PDF
               await Printing.layoutPdf(

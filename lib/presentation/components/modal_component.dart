@@ -71,8 +71,6 @@ class PaymentModalState extends State<PaymentModal> {
       int changeAmount =
           enteredAmount > totalAmount ? enteredAmount - totalAmount : 0;
 
-      print(changeAmount);
-
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -83,10 +81,49 @@ class PaymentModalState extends State<PaymentModal> {
                   PaymentEntry(
                     method: _selectedPaymentMethod,
                     amount: enteredAmount,
+                    reference: "0",
                   ),
                 ],
                 products: widget.productsData,
                 changeAmount: changeAmount,
+              ),
+        ),
+      );
+    }
+
+    if (['Tarjeta', 'QR Banco'].contains(_selectedPaymentMethod)) {
+      String cardType = _selectedCardType ?? '';
+
+      if (cardType.isEmpty) {
+        showAlert(context, 'Error', 'Seleccione el tipo de tarjeta');
+        return;
+      }
+
+      if (_phoneNumberController.text.isEmpty) {
+        showAlert(context, 'Error', 'Ingrese el número de celular');
+        return;
+      }
+
+      String authNumber = _authNumberCard.text.trim();
+      if (authNumber.isEmpty) {
+        showAlert(context, 'Error', 'Ingrese el número de autorización');
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => SummaryInvoiceComponent(
+                invoiceValue: totalAmount,
+                payments: [
+                  PaymentEntry(
+                    method: _selectedPaymentMethod,
+                    amount: totalAmount,
+                    reference: authNumber,
+                  ),
+                ],
+                products: widget.productsData,
               ),
         ),
       );

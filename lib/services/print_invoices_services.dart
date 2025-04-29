@@ -1,8 +1,13 @@
+import 'dart:convert';
+
 import 'package:app_planeta/infrastructure/local_db/dao/datos_mcabfa_dao.dart';
+import 'package:app_planeta/infrastructure/local_db/dao/datos_mlinfa_dao.dart';
 import 'package:app_planeta/infrastructure/local_db/dao/index.dart';
 import 'package:app_planeta/infrastructure/local_db/models/datos_cliente_model.dart';
 import 'package:app_planeta/infrastructure/local_db/models/mcabfa_model.dart';
+import 'package:app_planeta/infrastructure/local_db/models/mlinfa_model.dart';
 import 'package:app_planeta/presentation/components/invoce_details.dart';
+import 'package:app_planeta/services/ref_libro_especial.dart';
 import 'package:app_planeta/utils/create_cufe.dart';
 import 'package:app_planeta/utils/currency_formatter.dart';
 import 'package:flutter/material.dart';
@@ -16,14 +21,33 @@ class InvoiceService with ChangeNotifier {
     List<DatosClienteModel> clientes,
     int total,
     List<dynamic> payments,
+    String? tipoFacturacion,
     int diference,
   ) async {
     final pdf = pw.Document();
+    final String tipoFactura;
 
     // obtenemos los datos necesarios para la factura
     final datosEmpresas = await DatosEmpresaDao().getEmpresas();
     final datosCliente = await DatosClienteDao().getClientes();
     final datosCaja = await DatosCajaDao().getCajas();
+    final users = await UserDao().getUsers();
+
+    users.forEach((user) {
+      print({
+        "codUsuario": user.codUsuario,
+        "nombreUsuario": user.nombreUsuario,
+        "apellidoUsuario": user.apellidoUsuario,
+        "nickUsuario": user.nickUsuario,
+        "pwdUsuario": user.pwdUsuario,
+        "tipoUsuario": user.tipoUsuario,
+        "estadoUsuario": user.estadoUsuario,
+        "serieImpUsuario": user.serieImpUsuario,
+        "facturaAlternaUsuario": user.facturaAlternaUsuario,
+        "cajaUsuario": user.cajaUsuario,
+        "stand": user.stand,
+      });
+    });
 
     // tomamos el primer registro si existe
     final empresa = datosEmpresas.isNotEmpty ? datosEmpresas.first : null;
@@ -57,6 +81,36 @@ class InvoiceService with ChangeNotifier {
       return {'Efectivo': 'E', 'Tarjeta': 'T', 'Bono': 'B', 'QR': 'C'}[active
               .first] ??
           '';
+    }
+
+    final cufeData = CreateCufe().generateCufe(
+      numeroCaja: caja?.numeroCaja ?? '',
+      facturaActual: caja?.facturaActual ?? '',
+      fechaHoy: DateFormat('yyyy/MM/dd').format(DateTime.now()),
+      hora: DateFormat('HH:mm:ss').format(DateTime.now()),
+      totalFactura: total.toString(),
+      cedula: cliente?.clcecl ?? '',
+      claveTecnica: caja?.claveTecnica ?? '',
+    );
+
+    final qrData = jsonEncode({
+      'NumFac': caja?.facturaActual ?? '',
+      'FecFac': DateFormat('yyyy/MM/dd').format(DateTime.now()),
+      'HorFac': DateFormat('HH:mm:ss').format(DateTime.now()),
+      'NitFac': empresa?.nit ?? '',
+      'DocAdq': cliente?.clcecl ?? '',
+      'ValFac': total.toString(),
+      'ValIva': '0.00',
+      'valotrolm': '0.00',
+      'ValTolFac': total.toString(),
+      'CUFE': cufeData['cufe'] ?? '',
+      'QRCode': cufeData['linkVerificacionQr'] ?? '',
+    });
+
+    if (tipoFacturacion == '1') {
+      tipoFactura = "E";
+    } else {
+      tipoFactura = "N";
     }
 
     pdf.addPage(
@@ -148,10 +202,23 @@ class InvoiceService with ChangeNotifier {
                         children: [
                           // Primera fila: referencia y descripcion
                           pw.Row(
+                            mainAxisAlignment: pw.MainAxisAlignment.start,
                             children: [
-                              pw.Text(product.reference),
+                              pw.Container(
+                                width:
+                                    100, // define un ancho fijo para la referencia
+                                child: pw.Text(
+                                  product.reference,
+                                  style: pw.TextStyle(fontSize: 10),
+                                ),
+                              ),
                               pw.SizedBox(width: 15),
-                              pw.Text(product.description),
+                              pw.Expanded(
+                                child: pw.Text(
+                                  product.description,
+                                  style: pw.TextStyle(fontSize: 10),
+                                ),
+                              ),
                             ],
                           ),
 
@@ -218,7 +285,9 @@ class InvoiceService with ChangeNotifier {
 
                   // TODO: PONER EL CAJERO
                   pw.SizedBox(height: 10),
-                  pw.Text('Cajero: cajero1 - Consecutivo 25 - Caja99'),
+                  pw.Text(
+                    'Cajero: ${users.first.nickUsuario} - Consecutivo ${users.first.facturaAlternaUsuario} - ${users.first.cajaUsuario}',
+                  ),
                   pw.Text('Forma de Pago: ${paymentValues.keys.first}'),
                   pw.SizedBox(height: 10),
                   pw.SizedBox(height: 10),
@@ -248,46 +317,25 @@ class InvoiceService with ChangeNotifier {
                   ),
                   pw.SizedBox(height: 5),
                   pw.Text(
-                    CreateCufe().generateCufe(
-                          numeroCaja: caja?.numeroCaja ?? '',
-                          facturaActual: caja?.facturaActual ?? '',
-                          fechaHoy: DateFormat(
-                            'yyyy/MM/dd',
-                          ).format(DateTime.now()),
-                          hora: DateFormat('hh:mm:ss a').format(DateTime.now()),
-                          totalFactura: total.toString(),
-                          cedula: cliente?.clcecl ?? '',
-                          claveTecnica: caja?.claveTecnica ?? '',
-                        )['cufe'] ??
-                        '',
+                    cufeData['cufe'] ?? '',
                     textAlign: pw.TextAlign.center,
                   ),
-                  pw.SizedBox(height: 5),
-                  pw.Center(
-                    child: pw.BarcodeWidget(
-                      barcode: pw.Barcode.qrCode(),
-                      data:
-                          'NumFac: ${caja?.facturaActual ?? ''}\n'
-                          'FecFac: ${DateFormat('yyyy/MM/dd').format(DateTime.now())}\n'
-                          'HorFac: ${DateFormat('HH:mm:ss').format(DateTime.now())}\n'
-                          'NitFac: ${empresa?.nit ?? ''}\n'
-                          'DocAdq: ${cliente?.clcecl ?? ''}\n'
-                          'ValFac: ${total.toString()}\n'
-                          'ValIva: 0.00\n'
-                          'valotrolm: 0.00\n'
-                          'ValTolFac: ${total.toString()}\n'
-                          'CUFE: ${CreateCufe().generateCufe(numeroCaja: caja?.numeroCaja ?? '', facturaActual: caja?.facturaActual ?? '', fechaHoy: DateFormat('yyyy/MM/dd').format(DateTime.now()), hora: DateFormat('HH:mm:ss').format(DateTime.now()), totalFactura: total.toString(), cedula: cliente?.clcecl ?? '', claveTecnica: caja?.claveTecnica ?? '')['cufe'] ?? ''}\n'
-                          'QRCode: ${CreateCufe().generateCufe(numeroCaja: caja?.numeroCaja ?? '', facturaActual: caja?.facturaActual ?? '', fechaHoy: DateFormat('yyyy/MM/dd').format(DateTime.now()), hora: DateFormat('HH:mm:ss').format(DateTime.now()), totalFactura: total.toString(), cedula: cliente?.clcecl ?? '', claveTecnica: caja?.claveTecnica ?? '')['linkVerificacionQr'] ?? ''}',
-                      width: 120,
-                      height: 120,
-                    ),
+                  pw.SizedBox(height: 2),
+                  pw.BarcodeWidget(
+                    barcode: pw.Barcode.qrCode(),
+                    data: qrData,
+                    width: 350,
+                    height: 350,
+                    drawText:
+                        false, // muy importante: evita espacio extra abajo
+                    margin: pw.EdgeInsets.zero, // quita todo el margen
                   ),
-                  pw.SizedBox(height: 5),
+                  pw.SizedBox(height: 2),
                   pw.Text(
-                    "Proveedor Tecnológico APG Consulting Colombia SAS",
+                    "Proveedor Tecnológico APG\n Consulting Colombia SAS",
                     textAlign: pw.TextAlign.center,
                   ),
-                  pw.SizedBox(height: 60),
+                  pw.SizedBox(height: 100),
                 ],
               ),
             ],
@@ -296,7 +344,7 @@ class InvoiceService with ChangeNotifier {
       ),
     );
 
-    // insertamos el la tabla de mcabfa
+    // // insertamos el la tabla de mcabfa
     // await DatosMcabfaDao().insertMcabfa(
     //   McabfaModel(
     //     mcnufa: caja?.facturaActual as int? ?? 0,
@@ -305,9 +353,78 @@ class InvoiceService with ChangeNotifier {
     //     mcfefa: DateTime.now().millisecondsSinceEpoch,
     //     mchora: DateFormat('hh:mm:ss a').format(DateTime.now()),
     //     mcfopa: getPaymentAbbreviation(paymentValues),
-    //     mcpode: 0
+    //     mcpode: 0,
+    //     mcvade: 0,
+    //     mctifa: tipoFactura,
+    //     mcvabr: total,
+    //     mcvane: total,
+    //     mcesta: "",
+    //     mcvaef: paymentValues['Efectivo'] ?? 0,
+    //     mcvach: paymentValues['QR'] ?? 0,
+    //     mcvata: paymentValues['Tarjeta'] ?? 0,
+    //     mcvabo: paymentValues['Bono'] ?? 0,
+    //     mctobo: paymentValues['Bono'] ?? 0, // si total de bonos = valor bono
+    //     mcnubo:
+    //         (paymentValues['Bono'] ?? 0) > 0
+    //             ? '1'
+    //             : '0', // o ajusta si tienes varios bonos
+    //     mcusua: users.first.nickUsuario,
+    //     mcusan: "",
+    //     mchoan: 0,
+    //     mcnuau: "",
+    //     mcnufi: users.first.facturaAlternaUsuario,
+    //     mccaja: caja?.numeroCaja as String,
+    //     mcufe: cufeData['cufe'] ?? '',
+    //     mstand: caja?.stand as int? ?? 0,
+    //     mnube: 0,
     //   ),
     // );
+
+    // inserto en el mlinfa
+    // String obsLinfa;
+    // int totalPvpInd;
+    // int totalFeriaInd;
+
+    // for (var i = 0; i < products.length; i++) {
+    //   final dynamic tipoLibro = await RefLibroEspecial().getTipoLibro(
+    //     products[i].reference,
+    //   );
+    //   if (products[i].fairPrice == 0) {
+    //     obsLinfa = "S";
+    //   } else {
+    //     obsLinfa = "N";
+    //   }
+    //   totalPvpInd =
+    //       (num.parse(products[i].price.toString()) *
+    //               num.parse(products[i].quantity.toString()))
+    //           .toInt();
+    //   totalFeriaInd =
+    //       (num.parse(products[i].fairPrice.toString()) *
+    //               num.parse(products[i].quantity.toString()))
+    //           .toInt();
+
+    //   // insertamos en la tabla de mlinfa
+    //   await DatosMlinfaDao().insertMlinfa(
+    //     MlinfaModel(
+    //       mlnufc: caja?.facturaActual as int? ?? 0,
+    //       mlnuca: caja?.numeroCaja as String,
+    //       mlcdpr: products[i].reference,
+    //       mlnmpr: products[i].description,
+    //       mlpvpr: totalPvpInd,
+    //       mlpvne: totalFeriaInd,
+    //       mlcant: int.parse(products[i].quantity),
+    //       mlesta: tipoLibro,
+    //       mlestao: obsLinfa,
+    //       mlfefa: DateTime.now().millisecondsSinceEpoch,
+    //       mlestf: '',
+    //       mlusua: '',
+    //       mlnufi: 0,
+    //       mlcaja: caja?.numeroCaja as String,
+    //       mstand: caja?.stand as int? ?? 0,
+    //       mnube: 0,
+    //     ),
+    //   );
+    // }
 
     return pdf;
   }
