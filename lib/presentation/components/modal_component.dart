@@ -81,7 +81,11 @@ class PaymentModalState extends State<PaymentModal> {
                   PaymentEntry(
                     method: _selectedPaymentMethod,
                     amount: enteredAmount,
-                    reference: "0",
+                    reference:
+                        (_selectedPaymentMethod.contains('Tarjeta') ||
+                                _selectedPaymentMethod.contains('QR Banco'))
+                            ? _phoneNumberController.text.trim()
+                            : _authNumberCard.text.trim(),
                   ),
                 ],
                 products: widget.productsData,
@@ -94,21 +98,29 @@ class PaymentModalState extends State<PaymentModal> {
     if (['Tarjeta', 'QR Banco'].contains(_selectedPaymentMethod)) {
       String cardType = _selectedCardType ?? '';
 
-      if (cardType.isEmpty) {
+      if (['Tarjeta'].contains(_selectedPaymentMethod) && cardType.isEmpty) {
         showAlert(context, 'Error', 'Seleccione el tipo de tarjeta');
         return;
       }
 
-      if (_phoneNumberController.text.isEmpty) {
+      if (['QR Banco'].contains(_selectedPaymentMethod) &&
+          _phoneNumberController.text.isEmpty) {
         showAlert(context, 'Error', 'Ingrese el número de celular');
         return;
       }
 
       String authNumber = _authNumberCard.text.trim();
-      if (authNumber.isEmpty) {
+      if (['Tarjeta'].contains(_selectedPaymentMethod) && authNumber.isEmpty) {
         showAlert(context, 'Error', 'Ingrese el número de autorización');
         return;
       }
+
+      print({
+        'Método de Pago': _selectedPaymentMethod,
+        'Tipo de Tarjeta': cardType,
+        'Número de Autorización': authNumber,
+        'Número de Celular': _phoneNumberController.text.trim(),
+      });
 
       Navigator.push(
         context,
@@ -128,7 +140,108 @@ class PaymentModalState extends State<PaymentModal> {
         ),
       );
     }
+
+    if (['Bono'].contains(_selectedPaymentMethod)) {
+      int bonoValue = int.tryParse(_bonoValueController.text) ?? 0;
+      int bonoCount = int.tryParse(_bonoQuantityController.text) ?? 0;
+
+      if (bonoValue <= 0 || bonoCount <= 0) {
+        showAlert(context, 'Error', 'Ingrese el valor y la cantidad del bono');
+        return;
+      }
+
+      int totalBono = bonoValue * bonoCount;
+      if (totalBono < totalAmount) {
+        showAlert(
+          context,
+          'Error',
+          'El monto del bono es menor al monto total',
+        );
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => SummaryInvoiceComponent(
+                invoiceValue: totalAmount,
+                payments: [
+                  PaymentEntry(
+                    method: _selectedPaymentMethod,
+                    amount: bonoValue,
+                    numberBono: bonoCount,
+                    totalBono: bonoValue,
+                    numberOfBonoUsed: bonoCount,
+                    reference: _bonoValueController.text.trim(),
+                  ),
+                ],
+                products: widget.productsData,
+              ),
+        ),
+      );
+    }
+
+    if (['Mixto'].contains(_selectedPaymentMethod)) {
+      int cashAmount = int.tryParse(_amountMoneyController.text) ?? 0;
+      int cardAmount = int.tryParse(_amountCardController.text) ?? 0;
+      int bonoValue = int.tryParse(_bonoValueController.text) ?? 0;
+      int bonoCount = int.tryParse(_bonoQuantityController.text) ?? 0;
+
+      if (cashAmount <= 0 && cardAmount <= 0 && bonoValue <= 0) {
+        showAlert(context, 'Error', 'Ingrese al menos un método de pago');
+        return;
+      }
+
+      if (cashAmount + cardAmount + bonoValue < totalAmount) {
+        showAlert(
+          context,
+          'Error',
+          'La suma de los métodos de pago es menor al monto total',
+        );
+        return;
+      }
+    }
   }
+
+  // if (_selectedPaymentMethod == 'Mixto') {
+  //   int cashAmount = int.tryParse(_amountMoneyController.text) ?? 0;
+  //   int cardAmount = int.tryParse(_amountCardController.text) ?? 0;
+  //   int bonoValue = int.tryParse(_bonoValueController.text) ?? 0;
+  //   int bonoCount = int.tryParse(_bonoQuantityController.text) ?? 0;
+
+  //   if (cashAmount <= 0 && cardAmount <= 0 && bonoValue <= 0) {
+  //     showAlert(context, 'Error', 'Ingrese al menos un método de pago');
+  //     return;
+  //   }
+
+  //   if (cashAmount + cardAmount + bonoValue < totalAmount) {
+  //     showAlert(
+  //       context,
+  //       'Error',
+  //       'La suma de los métodos de pago es menor al monto total',
+  //     );
+  //     return;
+  //   }
+
+  //   Navigator.push(
+  //     context,
+  //     MaterialPageRoute(
+  //       builder:
+  //           (context) => SummaryInvoiceComponent(
+  //             invoiceValue: total,
+  //             payments: [
+  //               PaymentEntry(
+  //                 method: _selectedPaymentMethod,
+  //                 amount: cashAmount + cardAmount + bonoValue,
+  //                 reference: _authNumberCard.text.trim(),
+  //               ),
+  //             ],
+  //             products: widget.productsData,
+  //           ),
+  //     ),
+  //   );
+  // }
 
   @override
   Widget build(BuildContext context) {
@@ -223,7 +336,7 @@ class PaymentModalState extends State<PaymentModal> {
               const SizedBox(height: 16),
               TextField(
                 controller: _authNumberCard,
-                keyboardType: TextInputType.number,
+                keyboardType: TextInputType.text,
                 decoration: const InputDecoration(
                   labelText: 'Numero De Autorización',
                   border: OutlineInputBorder(),

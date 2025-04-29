@@ -10,22 +10,22 @@ import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 
 class PaymentEntry {
-  final String method; // "Efectivo", "Tarjeta", "QR", …
-  final String? reference; // Referencia de pago (opcional)
-  final int amount; // Valor pagado
-  final int? numberPhone; // Número de teléfono (opcional)
-  final int? numberBono; // Número de bono (opcional)
-  final int? totalBono; // Total del bono (opcional)
-  final int? numberOfBonoUsed; // Número de bono usado (opcional)
+  final String method;
+  final String? reference;
+  final int amount;
+  final int? numberPhone;
+  final int? numberBono;
+  final int? totalBono;
+  final int? numberOfBonoUsed;
 
-  PaymentEntry(
-    this.numberPhone,
-    this.numberBono,
-    this.totalBono,
-    this.numberOfBonoUsed, {
+  PaymentEntry({
     required this.method,
     required this.amount,
     this.reference,
+    this.numberPhone,
+    this.numberBono,
+    this.totalBono,
+    this.numberOfBonoUsed,
   });
 }
 
@@ -131,7 +131,7 @@ class SummaryInvoiceComponent extends StatelessWidget {
 
   Widget _buildTransactionSummary() {
     // Inicializa todos los métodos en $0
-    final amounts = {'Efectivo': 0, 'Tarjeta': 0, 'QR': 0, 'Bono': 0};
+    final amounts = {'Efectivo': 0, 'Tarjeta': 0, 'QR Banco': 0, 'Bono': 0};
     // Llena solo el que venga en payments
     for (var p in payments) {
       if (amounts.containsKey(p.method)) {
@@ -154,7 +154,7 @@ class SummaryInvoiceComponent extends StatelessWidget {
             const SizedBox(height: 12),
             _buildTransactionRow('Efectivo', amounts['Efectivo']!),
             _buildTransactionRow('Tarjeta', amounts['Tarjeta']!),
-            _buildTransactionRow('QR', amounts['QR']!),
+            _buildTransactionRow('QR', amounts['QR Banco']!),
             _buildTransactionRow('Bono', amounts['Bono']!),
             const Divider(thickness: 1),
             _buildTransactionRow('Total', invoiceValue, isBold: true),
