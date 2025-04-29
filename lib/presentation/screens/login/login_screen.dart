@@ -57,7 +57,7 @@ class _LoginScreenState extends State<LoginScreen> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Color(0xFF3E7CB1), // Azul claro en la parte inferior
+                  Color.fromARGB(255, 245, 245, 245), // Azul claro en la parte inferior
                   Color(0xFF123D6F), // Azul intermedio
                   Color(0xFF0A1F44), // Azul muy oscuro en la parte superior
                 ],

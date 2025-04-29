@@ -1,5 +1,7 @@
+import 'package:app_planeta/infrastructure/local_db/dao/datos_mcabfa_dao.dart';
 import 'package:app_planeta/infrastructure/local_db/dao/index.dart';
 import 'package:app_planeta/infrastructure/local_db/models/datos_cliente_model.dart';
+import 'package:app_planeta/infrastructure/local_db/models/mcabfa_model.dart';
 import 'package:app_planeta/presentation/components/invoce_details.dart';
 import 'package:app_planeta/utils/create_cufe.dart';
 import 'package:app_planeta/utils/currency_formatter.dart';
@@ -43,6 +45,18 @@ class InvoiceService with ChangeNotifier {
       if (paymentValues.containsKey(method)) {
         paymentValues[method] = amount;
       }
+    }
+
+    String getPaymentAbbreviation(Map<String, int> paymentValues) {
+      final active =
+          paymentValues.entries
+              .where((e) => e.value > 0)
+              .map((e) => e.key)
+              .toList();
+      if (active.length > 1) return 'M';
+      return {'Efectivo': 'E', 'Tarjeta': 'T', 'Bono': 'B', 'QR': 'C'}[active
+              .first] ??
+          '';
     }
 
     pdf.addPage(
@@ -249,6 +263,26 @@ class InvoiceService with ChangeNotifier {
                     textAlign: pw.TextAlign.center,
                   ),
                   pw.SizedBox(height: 5),
+                  pw.Center(
+                    child: pw.BarcodeWidget(
+                      barcode: pw.Barcode.qrCode(),
+                      data:
+                          'NumFac: ${caja?.facturaActual ?? ''}\n'
+                          'FecFac: ${DateFormat('yyyy/MM/dd').format(DateTime.now())}\n'
+                          'HorFac: ${DateFormat('HH:mm:ss').format(DateTime.now())}\n'
+                          'NitFac: ${empresa?.nit ?? ''}\n'
+                          'DocAdq: ${cliente?.clcecl ?? ''}\n'
+                          'ValFac: ${total.toString()}\n'
+                          'ValIva: 0.00\n'
+                          'valotrolm: 0.00\n'
+                          'ValTolFac: ${total.toString()}\n'
+                          'CUFE: ${CreateCufe().generateCufe(numeroCaja: caja?.numeroCaja ?? '', facturaActual: caja?.facturaActual ?? '', fechaHoy: DateFormat('yyyy/MM/dd').format(DateTime.now()), hora: DateFormat('HH:mm:ss').format(DateTime.now()), totalFactura: total.toString(), cedula: cliente?.clcecl ?? '', claveTecnica: caja?.claveTecnica ?? '')['cufe'] ?? ''}\n'
+                          'QRCode: ${CreateCufe().generateCufe(numeroCaja: caja?.numeroCaja ?? '', facturaActual: caja?.facturaActual ?? '', fechaHoy: DateFormat('yyyy/MM/dd').format(DateTime.now()), hora: DateFormat('HH:mm:ss').format(DateTime.now()), totalFactura: total.toString(), cedula: cliente?.clcecl ?? '', claveTecnica: caja?.claveTecnica ?? '')['linkVerificacionQr'] ?? ''}',
+                      width: 120,
+                      height: 120,
+                    ),
+                  ),
+                  pw.SizedBox(height: 5),
                   pw.Text(
                     "Proveedor Tecnológico APG Consulting Colombia SAS",
                     textAlign: pw.TextAlign.center,
@@ -261,6 +295,19 @@ class InvoiceService with ChangeNotifier {
         },
       ),
     );
+
+    // insertamos el la tabla de mcabfa
+    // await DatosMcabfaDao().insertMcabfa(
+    //   McabfaModel(
+    //     mcnufa: caja?.facturaActual as int? ?? 0,
+    //     mcnuca: (caja?.numeroCaja.toString() ?? '0'),
+    //     mccecl: int.tryParse(cliente?.clcecl ?? '0') ?? 0,
+    //     mcfefa: DateTime.now().millisecondsSinceEpoch,
+    //     mchora: DateFormat('hh:mm:ss a').format(DateTime.now()),
+    //     mcfopa: getPaymentAbbreviation(paymentValues),
+    //     mcpode: 0
+    //   ),
+    // );
 
     return pdf;
   }

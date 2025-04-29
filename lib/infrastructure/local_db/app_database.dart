@@ -153,7 +153,7 @@ class AppDatabase {
         await db.execute('''
           CREATE TABLE IF NOT EXISTS mcabfa (
             mcnufa INTEGER NOT NULL,
-            mcnuca TEXT NOT NULL,
+            mcnuca TEXT NOT NULL, 
             mccecl INTEGER NOT NULL,
             mcfefa INTEGER NOT NULL,
             mchora TEXT NOT NULL,
