@@ -2,6 +2,7 @@ import 'package:app_planeta/infrastructure/local_db/app_database.dart';
 import 'package:app_planeta/presentation/screens/facturacion_especial/facturacion_especial.dart';
 import 'package:app_planeta/presentation/screens/home/home_screen.dart';
 import 'package:app_planeta/presentation/screens/login/login_screen.dart';
+import 'package:app_planeta/presentation/screens/sube_datos_nube/sube_datos_nube.dart';
 import 'package:app_planeta/providers/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -39,6 +40,7 @@ class _DrawerComponentState extends State<DrawerComponent> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!authProvider.isAuthenticated) {
         Future.microtask(() {
+          if (!context.mounted) return;
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -95,6 +97,25 @@ class _DrawerComponentState extends State<DrawerComponent> {
                         builder: (context) => FacturacionEspecial(),
                         settings: const RouteSettings(
                           name: 'facturacion_especial',
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.cloud_upload),
+                  title: const Text('Sube datos nube'),
+                  selected:
+                      ModalRoute.of(context)?.settings.name ==
+                      'sube_datos_nube',
+                  selectedTileColor: Colors.grey[300],
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SubeDatosNube(),
+                        settings: const RouteSettings(
+                          name: 'sube_datos_nube',
                         ),
                       ),
                     );

@@ -104,7 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return InvoiceComponent(
       title: "Facturación Normal",
-      body: InvoceDetails(onSync: () => _syncData(context)),
+      body: InvoceDetails(onSync: () => _syncData(context), typeFactura: "1"),
     );
   }
 }

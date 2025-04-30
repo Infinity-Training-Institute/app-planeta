@@ -35,4 +35,48 @@ class DatosMcabfaDao {
       "mnube": mcabfa.mnube
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
+
+  // funcion para obtener todo
+  Future<List<McabfaModel>> getAllMcabfa() async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query("mcabfa");
+    return List.generate(maps.length, (i) {
+      return McabfaModel(
+        mcnufa: maps[i]["mcnufa"],
+        mcnuca: maps[i]["mcnuca"],
+        mccecl: maps[i]["mccecl"],
+        mcfefa: maps[i]["mcfefa"],
+        mchora: maps[i]["mchora"],
+        mcfopa: maps[i]["mcfopa"],
+        mcpode: maps[i]["mcpode"],
+        mcvade: maps[i]["mcvade"],
+        mctifa: maps[i]["mctifa"],
+        mcvabr: maps[i]["mcvabr"],
+        mcvane: maps[i]["mcvane"],
+        mcesta: maps[i]["mcesta"],
+        mcvaef: maps[i]["mcvaef"],
+        mcvach: maps[i]["mcvach"],
+        mcvata: maps[i]["mcvata"],
+        mcvabo: maps[i]["mcvabo"],
+        mctobo: maps[i]["mctobo"],
+        mcnubo: maps[i]["mcnubo"],
+        mcusua: maps[i]["mcusua"],
+        mcusan: maps[i]["mcusan"],
+        mchoan: maps[i]["mchoan"],
+        mcnuau: maps[i]["mcnuau"],
+        mcnufi: maps[i]["mcnufi"],
+        mccaja: maps[i]["mccaja"],
+        mcufe: maps[i]["mcufe"],
+        mstand: maps[i]["mstand"],
+        mnube: maps[i]["mnube"]
+      );
+    });
+  }
+
+  // funcion para un count
+  Future<int> getCountMcabfa() async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query("mcabfa");
+    return maps.length;
+  }
 }

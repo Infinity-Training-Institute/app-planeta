@@ -66,4 +66,17 @@ class UserDao {
 
     return null;
   }
+
+  Future<void> updateFacturaAlternaUsuario(
+    String usuario,
+    int facturaAlternaUsuario,
+  ) async {
+    final db = await AppDatabase.database;
+    await db.update(
+      'Usuarios',
+      {'Factura_Alterna_Usuario': facturaAlternaUsuario},
+      where: 'Nick_Usuario = ?',
+      whereArgs: [usuario],
+    );
+  }
 }

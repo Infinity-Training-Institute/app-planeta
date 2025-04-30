@@ -55,7 +55,11 @@ class _FacturacionEspecial extends State<FacturacionEspecial> {
               ElevatedButton(
                 onPressed: () {
                   setState(() {
-                    invoiceDiscount = discountController.text as int;
+                    final text = discountController.text;
+                    // Asegúrate de que `text` sea válido como entero
+                    invoiceDiscount =
+                        int.tryParse(text) ??
+                        0; // Si no se puede convertir, asigna 0
                     _isDialogCompleted = true; // Permite mostrar la pantalla
                   });
                   Navigator.pop(context);
@@ -136,6 +140,7 @@ class _FacturacionEspecial extends State<FacturacionEspecial> {
       body: InvoceDetails(
         onSync: () => onSync(context),
         invoiceDiscount: invoiceDiscount,
+        typeFactura: "2",
       ),
     );
   }

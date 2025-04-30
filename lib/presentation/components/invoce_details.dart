@@ -72,11 +72,13 @@ class Product {
 class InvoceDetails extends StatefulWidget {
   final VoidCallback onSync;
   final int invoiceDiscount; // Nuevo parámetro opcional
+  final String? typeFactura;
 
   const InvoceDetails({
     super.key,
     required this.onSync,
     this.invoiceDiscount = 0, // Valor por defecto si no se envía
+    this.typeFactura,
   });
 
   @override
@@ -409,6 +411,74 @@ class _InvoceDetails extends State<InvoceDetails> {
       return;
     }
 
+    // Si hay promociones por cantidad agregamos las reglas
+    if (promocionesCantidad.isNotEmpty && products.isNotEmpty) {
+      final cantidadProductosT = tipoT.length;
+
+      if (cantidadProductosT > 0) {
+        // Verificar si hay alguna promoción aplicable
+        bool promocionEncontrada = false;
+        int porcentajeDescuento = 0;
+
+        // Buscar en las promociones disponibles
+        for (var promocion in promocionesCantidad) {
+          if (cantidadProductosT >= promocion["Productos_Desde"] &&
+              cantidadProductosT <= promocion["Productos_Hasta"]) {
+            promocionEncontrada = true;
+            porcentajeDescuento = promocion["Porcentaje_Descuento"];
+            break;
+          }
+        }
+
+        // Si hay una promoción aplicable
+        if (promocionEncontrada) {
+          // Ordenar productos tipo T por precio (de menor a mayor)
+          tipoT.sort((a, b) => a.price.compareTo(b.price));
+
+          if (cantidadProductosT >= 3) {
+            // Caso de grupo completo (3 o más productos tipo T)
+
+            // Dividir en grupos de 3
+            int cantidadGrupos = cantidadProductosT ~/ 3;
+            int productosEnGruposCompletos = cantidadGrupos * 3;
+
+            // Aplicar promoción a cada grupo completo de 3
+            for (int i = 0; i < cantidadGrupos; i++) {
+              int indiceInicial = i * 3;
+              // El producto más barato del grupo se pone en 0 (gratis)
+              tipoT[indiceInicial].total = 0;
+              tipoT[indiceInicial].fairPrice = 0;
+
+              // Los otros 2 productos del grupo mantienen su precio original
+              // (no necesitamos hacer nada ya que no se han modificado)
+            }
+
+            // Para los productos restantes que no forman un grupo completo
+            if (cantidadProductosT > productosEnGruposCompletos) {
+              final descuento = porcentajeDescuento / 100;
+              for (
+                int i = productosEnGruposCompletos;
+                i < cantidadProductosT;
+                i++
+              ) {
+                tipoT[i].total = tipoT[i].total * (1 - descuento);
+                tipoT[i].fairPrice =
+                    tipoT[i].fairPrice * (1 - descuento);
+              }
+            }
+          } else {
+            // Caso de grupo incompleto (menos de 3)
+            // Aplicar el porcentaje de descuento a todos los productos tipo T
+            final descuento = porcentajeDescuento / 100;
+            for (var producto in tipoT) {
+              producto.total = producto.total * (1 - descuento);
+              producto.fairPrice = producto.fairPrice * (1 - descuento);
+            }
+          }
+        }
+      }
+    }
+
     // Actualizamos el total final
     totalFinal = products.fold<int>(
       0,
@@ -554,6 +624,7 @@ class _InvoceDetails extends State<InvoceDetails> {
       builder:
           (context) => PaymentModal(
             total: total,
+            typeOfInvoice: widget.typeFactura,
             productsData: products, // Pasar la lista de productos
           ),
     );
@@ -784,7 +855,7 @@ class _InvoceDetails extends State<InvoceDetails> {
     }
 
     // obtenemos la factura interna del usuario y le sumamos 1
-    int invoiceNumber = usuarios[0]['Factura_Alterna_Usuario'] + 1;
+    int invoiceNumber = usuarios[0]['Factura_Alterna_Usuario'];
 
     return Scaffold(
       body: SafeArea(

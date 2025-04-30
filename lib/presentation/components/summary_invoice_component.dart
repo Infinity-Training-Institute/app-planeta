@@ -31,6 +31,7 @@ class PaymentEntry {
 
 class SummaryInvoiceComponent extends StatelessWidget {
   final int invoiceValue;
+  final String? typeInvoice;
   final List<PaymentEntry> payments;
   final int mixedAmount; // Si usas mezcla de pagos
   final int changeAmount; // Cambio total si lo necesitas
@@ -65,6 +66,7 @@ class SummaryInvoiceComponent extends StatelessWidget {
     required this.products,
     this.mixedAmount = 0,
     this.changeAmount = 0,
+    this.typeInvoice,
   });
 
   @override
@@ -160,7 +162,7 @@ class SummaryInvoiceComponent extends StatelessWidget {
             _buildTransactionRow('Total', invoiceValue, isBold: true),
             _buildTransactionRow(
               'Cambio',
-              payments.fold(0, (sum, p) => sum + p.amount) - invoiceValue,
+              changeAmount,
               isBold: true,
               color: Colors.red,
             ),
@@ -414,11 +416,16 @@ class SummaryInvoiceComponent extends StatelessWidget {
                 datosClientes,
                 invoiceValue,
                 payments,
-                "1",
+                typeInvoice,
                 changeAmount,
               ); // Generar PDF
               await Printing.layoutPdf(
                 onLayout: (format) async => pdf?.save() ?? Uint8List(0),
+              );
+
+              if (!context.mounted) return;
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(builder: (context) => HomeScreen()),
               );
             },
             style: ElevatedButton.styleFrom(

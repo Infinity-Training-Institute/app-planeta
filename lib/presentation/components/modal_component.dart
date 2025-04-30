@@ -7,11 +7,13 @@ import 'package:flutter/material.dart';
 class PaymentModal extends StatefulWidget {
   final int total;
   final List<Product> productsData;
+  final String? typeOfInvoice;
 
   const PaymentModal({
     super.key,
     required this.total,
     required this.productsData,
+    this.typeOfInvoice,
   });
 
   @override
@@ -115,13 +117,6 @@ class PaymentModalState extends State<PaymentModal> {
         return;
       }
 
-      print({
-        'Método de Pago': _selectedPaymentMethod,
-        'Tipo de Tarjeta': cardType,
-        'Número de Autorización': authNumber,
-        'Número de Celular': _phoneNumberController.text.trim(),
-      });
-
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -136,6 +131,7 @@ class PaymentModalState extends State<PaymentModal> {
                   ),
                 ],
                 products: widget.productsData,
+                typeInvoice: widget.typeOfInvoice,
               ),
         ),
       );
@@ -169,7 +165,7 @@ class PaymentModalState extends State<PaymentModal> {
                 payments: [
                   PaymentEntry(
                     method: _selectedPaymentMethod,
-                    amount: bonoValue,
+                    amount: totalAmount,
                     numberBono: bonoCount,
                     totalBono: bonoValue,
                     numberOfBonoUsed: bonoCount,
@@ -177,6 +173,7 @@ class PaymentModalState extends State<PaymentModal> {
                   ),
                 ],
                 products: widget.productsData,
+                typeInvoice: widget.typeOfInvoice,
               ),
         ),
       );
@@ -185,6 +182,7 @@ class PaymentModalState extends State<PaymentModal> {
     if (['Mixto'].contains(_selectedPaymentMethod)) {
       int cashAmount = int.tryParse(_amountMoneyController.text) ?? 0;
       int cardAmount = int.tryParse(_amountCardController.text) ?? 0;
+      int qrAmount = int.tryParse(_amountQrController.text) ?? 0;
       int bonoValue = int.tryParse(_bonoValueController.text) ?? 0;
       int bonoCount = int.tryParse(_bonoQuantityController.text) ?? 0;
 
@@ -193,7 +191,10 @@ class PaymentModalState extends State<PaymentModal> {
         return;
       }
 
-      if (cashAmount + cardAmount + bonoValue < totalAmount) {
+      final totalPago =
+          cashAmount + qrAmount + cardAmount + (bonoValue * bonoCount);
+
+      if (totalPago < totalAmount) {
         showAlert(
           context,
           'Error',
@@ -201,47 +202,76 @@ class PaymentModalState extends State<PaymentModal> {
         );
         return;
       }
+
+      if (bonoValue > 0 && bonoCount <= 0) {
+        showAlert(context, 'Error', 'Ingrese la cantidad de bonos');
+        return;
+      }
+
+      if (bonoCount > 0 && bonoValue <= 0) {
+        showAlert(context, 'Error', 'Ingrese el valor del bono');
+        return;
+      }
+
+      List<PaymentEntry> payments = [];
+
+      if (cashAmount > 0) {
+        payments.add(PaymentEntry(method: 'Efectivo', amount: cashAmount));
+      }
+
+      if (cardAmount > 0) {
+        payments.add(
+          PaymentEntry(
+            method: 'Tarjeta',
+            amount: cardAmount,
+            reference: _authNumberCard.text.trim(),
+          ),
+        );
+      }
+
+      if (bonoValue > 0) {
+        payments.add(
+          PaymentEntry(
+            method: 'Bono',
+            amount: bonoValue,
+            numberBono: bonoCount,
+            totalBono: bonoValue,
+            numberOfBonoUsed: bonoCount,
+          ),
+        );
+      }
+
+      if (qrAmount > 0) {
+        payments.add(
+          PaymentEntry(
+            method: 'QR Banco',
+            amount: qrAmount,
+            numberPhone: int.tryParse(_phoneNumberController.text.trim()),
+          ),
+        );
+      }
+
+      payments.forEach((p) {
+        print(
+          'Método: ${p.method}, Monto: ${p.amount}, Referencia: ${p.reference}',
+        );
+      });
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => SummaryInvoiceComponent(
+                invoiceValue: totalAmount,
+                payments: payments,
+                changeAmount: cashAmount + qrAmount + cardAmount - totalAmount,
+                products: widget.productsData,
+                typeInvoice: widget.typeOfInvoice,
+              ),
+        ),
+      );
     }
   }
-
-  // if (_selectedPaymentMethod == 'Mixto') {
-  //   int cashAmount = int.tryParse(_amountMoneyController.text) ?? 0;
-  //   int cardAmount = int.tryParse(_amountCardController.text) ?? 0;
-  //   int bonoValue = int.tryParse(_bonoValueController.text) ?? 0;
-  //   int bonoCount = int.tryParse(_bonoQuantityController.text) ?? 0;
-
-  //   if (cashAmount <= 0 && cardAmount <= 0 && bonoValue <= 0) {
-  //     showAlert(context, 'Error', 'Ingrese al menos un método de pago');
-  //     return;
-  //   }
-
-  //   if (cashAmount + cardAmount + bonoValue < totalAmount) {
-  //     showAlert(
-  //       context,
-  //       'Error',
-  //       'La suma de los métodos de pago es menor al monto total',
-  //     );
-  //     return;
-  //   }
-
-  //   Navigator.push(
-  //     context,
-  //     MaterialPageRoute(
-  //       builder:
-  //           (context) => SummaryInvoiceComponent(
-  //             invoiceValue: total,
-  //             payments: [
-  //               PaymentEntry(
-  //                 method: _selectedPaymentMethod,
-  //                 amount: cashAmount + cardAmount + bonoValue,
-  //                 reference: _authNumberCard.text.trim(),
-  //               ),
-  //             ],
-  //             products: widget.productsData,
-  //           ),
-  //     ),
-  //   );
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -434,7 +464,7 @@ class PaymentModalState extends State<PaymentModal> {
               const SizedBox(height: 16),
               TextField(
                 controller: _authNumberCard,
-                keyboardType: TextInputType.number,
+                keyboardType: TextInputType.text,
                 decoration: const InputDecoration(
                   labelText: 'Numero De Autorización',
                   border: OutlineInputBorder(),

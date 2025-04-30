@@ -58,7 +58,7 @@ class InvoiceService with ChangeNotifier {
     final Map<String, int> paymentValues = {
       'Efectivo': 0,
       'Tarjeta': 0,
-      'QR': 0,
+      'QR Banco': 0,
       'Bono': 0,
     };
 
@@ -112,6 +112,8 @@ class InvoiceService with ChangeNotifier {
     } else {
       tipoFactura = "N";
     }
+
+    print(caja?.facturaActual);
 
     pdf.addPage(
       pw.Page(
@@ -344,87 +346,95 @@ class InvoiceService with ChangeNotifier {
       ),
     );
 
-    // // insertamos el la tabla de mcabfa
-    // await DatosMcabfaDao().insertMcabfa(
-    //   McabfaModel(
-    //     mcnufa: caja?.facturaActual as int? ?? 0,
-    //     mcnuca: (caja?.numeroCaja.toString() ?? '0'),
-    //     mccecl: int.tryParse(cliente?.clcecl ?? '0') ?? 0,
-    //     mcfefa: DateTime.now().millisecondsSinceEpoch,
-    //     mchora: DateFormat('hh:mm:ss a').format(DateTime.now()),
-    //     mcfopa: getPaymentAbbreviation(paymentValues),
-    //     mcpode: 0,
-    //     mcvade: 0,
-    //     mctifa: tipoFactura,
-    //     mcvabr: total,
-    //     mcvane: total,
-    //     mcesta: "",
-    //     mcvaef: paymentValues['Efectivo'] ?? 0,
-    //     mcvach: paymentValues['QR'] ?? 0,
-    //     mcvata: paymentValues['Tarjeta'] ?? 0,
-    //     mcvabo: paymentValues['Bono'] ?? 0,
-    //     mctobo: paymentValues['Bono'] ?? 0, // si total de bonos = valor bono
-    //     mcnubo:
-    //         (paymentValues['Bono'] ?? 0) > 0
-    //             ? '1'
-    //             : '0', // o ajusta si tienes varios bonos
-    //     mcusua: users.first.nickUsuario,
-    //     mcusan: "",
-    //     mchoan: 0,
-    //     mcnuau: "",
-    //     mcnufi: users.first.facturaAlternaUsuario,
-    //     mccaja: caja?.numeroCaja as String,
-    //     mcufe: cufeData['cufe'] ?? '',
-    //     mstand: caja?.stand as int? ?? 0,
-    //     mnube: 0,
-    //   ),
-    // );
+    // insertamos el la tabla de mcabfa
+    await DatosMcabfaDao().insertMcabfa(
+      McabfaModel(
+        mcnufa: int.tryParse(caja?.facturaActual ?? '') ?? 0,
+        mcnuca: (caja?.numeroCaja.toString() ?? '0'),
+        mccecl: int.tryParse(cliente?.clcecl ?? '0') ?? 0,
+        mcfefa: DateTime.now().millisecondsSinceEpoch,
+        mchora: DateFormat('hh:mm:ss a').format(DateTime.now()),
+        mcfopa: getPaymentAbbreviation(paymentValues),
+        mcpode: 0,
+        mcvade: 0,
+        mctifa: tipoFactura,
+        mcvabr: total,
+        mcvane: total,
+        mcesta: "",
+        mcvaef: paymentValues['Efectivo'] ?? 0,
+        mcvach: paymentValues['QR'] ?? 0,
+        mcvata: paymentValues['Tarjeta'] ?? 0,
+        mcvabo: paymentValues['Bono'] ?? 0,
+        mctobo: paymentValues['Bono'] ?? 0, // si total de bonos = valor bono
+        mcnubo: payments.first.numberBono?.toString() ?? '0',
+        mcusua: users.first.nickUsuario,
+        mcusan: "",
+        mchoan: 0,
+        mcnuau: "",
+        mcnufi: users.first.facturaAlternaUsuario,
+        mccaja: caja?.numeroCaja as String,
+        mcufe: cufeData['cufe'] ?? '',
+        mstand: int.tryParse(caja?.stand ?? '') ?? 0,
+        mnube: 0,
+      ),
+    );
 
     // inserto en el mlinfa
-    // String obsLinfa;
-    // int totalPvpInd;
-    // int totalFeriaInd;
+    String obsLinfa;
+    int totalPvpInd;
+    int totalFeriaInd;
 
-    // for (var i = 0; i < products.length; i++) {
-    //   final dynamic tipoLibro = await RefLibroEspecial().getTipoLibro(
-    //     products[i].reference,
-    //   );
-    //   if (products[i].fairPrice == 0) {
-    //     obsLinfa = "S";
-    //   } else {
-    //     obsLinfa = "N";
-    //   }
-    //   totalPvpInd =
-    //       (num.parse(products[i].price.toString()) *
-    //               num.parse(products[i].quantity.toString()))
-    //           .toInt();
-    //   totalFeriaInd =
-    //       (num.parse(products[i].fairPrice.toString()) *
-    //               num.parse(products[i].quantity.toString()))
-    //           .toInt();
+    for (var i = 0; i < products.length; i++) {
+      final dynamic tipoLibro = await RefLibroEspecial().getTipoLibro(
+        products[i].reference,
+      );
+      if (products[i].fairPrice == 0) {
+        obsLinfa = "S";
+      } else {
+        obsLinfa = "N";
+      }
+      totalPvpInd =
+          (num.parse(products[i].price.toString()) *
+                  num.parse(products[i].quantity.toString()))
+              .toInt();
+      totalFeriaInd =
+          (num.parse(products[i].fairPrice.toString()) *
+                  num.parse(products[i].quantity.toString()))
+              .toInt();
 
-    //   // insertamos en la tabla de mlinfa
-    //   await DatosMlinfaDao().insertMlinfa(
-    //     MlinfaModel(
-    //       mlnufc: caja?.facturaActual as int? ?? 0,
-    //       mlnuca: caja?.numeroCaja as String,
-    //       mlcdpr: products[i].reference,
-    //       mlnmpr: products[i].description,
-    //       mlpvpr: totalPvpInd,
-    //       mlpvne: totalFeriaInd,
-    //       mlcant: int.parse(products[i].quantity),
-    //       mlesta: tipoLibro,
-    //       mlestao: obsLinfa,
-    //       mlfefa: DateTime.now().millisecondsSinceEpoch,
-    //       mlestf: '',
-    //       mlusua: '',
-    //       mlnufi: 0,
-    //       mlcaja: caja?.numeroCaja as String,
-    //       mstand: caja?.stand as int? ?? 0,
-    //       mnube: 0,
-    //     ),
-    //   );
-    // }
+      // insertamos en la tabla de mlinfa
+      await DatosMlinfaDao().insertMlinfa(
+        MlinfaModel(
+          mlnufc: int.tryParse(caja?.facturaActual ?? '') ?? 0,
+          mlnuca: caja?.numeroCaja as String,
+          mlcdpr: products[i].reference,
+          mlnmpr: products[i].description,
+          mlpvpr: totalPvpInd,
+          mlpvne: totalFeriaInd,
+          mlcant: int.parse(products[i].quantity),
+          mlesta: tipoLibro,
+          mlestao: obsLinfa,
+          mlfefa: DateTime.now().millisecondsSinceEpoch,
+          mlestf: '',
+          mlusua: '',
+          mlnufi: 0,
+          mlcaja: caja?.numeroCaja as String,
+          mstand: int.tryParse(caja?.stand ?? '') ?? 0,
+          mnube: 0,
+        ),
+      );
+    }
+
+    // actualizamos el numero de la factura alterna
+    await UserDao().updateFacturaAlternaUsuario(
+      users.first.nickUsuario,
+      users.first.facturaAlternaUsuario + 1,
+    );
+
+    print(caja?.nickUsuario);
+
+    // actualizamos la factura actual de la caja
+    await DatosCajaDao().updateFacturaActual(caja?.nickUsuario as String);
 
     return pdf;
   }
