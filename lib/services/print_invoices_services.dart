@@ -108,9 +108,9 @@ class InvoiceService with ChangeNotifier {
     });
 
     if (tipoFacturacion == '1') {
-      tipoFactura = "E";
-    } else {
       tipoFactura = "N";
+    } else {
+      tipoFactura = "E";
     }
 
     print(caja?.facturaActual);
@@ -143,19 +143,22 @@ class InvoiceService with ChangeNotifier {
               if (clientes.isNotEmpty) ...[
                 for (var cliente in clientes) ...[
                   pw.SizedBox(height: 10),
-                  pw.Text('NOMBRE: ${cliente.clnmcl}'),
+                  pw.Text('NOMBRE: ${cliente.clnmcl} ${cliente.clpacl}'),
                   pw.Text('CEDULA/NIT: ${cliente.clcecl}'),
                   pw.Text('TELEFONO: ${cliente.cltele}'),
-                  pw.Text('DIRECCIÓN: ${cliente.cldire}'),
                   pw.Text('EMAIL: ${cliente.clmail}'),
+                  pw.Text('DIRECCIÓN: ${cliente.cldire}'),
+                  pw.Text('CIUDAD: ${cliente.clciud}'),
+                  pw.SizedBox(height: 10),
                 ],
               ] else ...[
                 pw.SizedBox(height: 10),
-                pw.Text('NOMBRE: ${cliente?.clnmcl}'),
-                pw.Text('CEDULA/NIT: ${cliente?.clcecl}'),
-                pw.Text('TELEFONO: ${cliente?.cltele}'),
-                pw.Text('DIRECCIÓN: ${cliente?.cldire}'),
-                pw.Text('EMAIL: ${cliente?.clmail}'),
+                pw.Text('NOMBRE: Consumidor Final'),
+                pw.Text('CEDULA/NIT: 222222222222'),
+                pw.Text('TELEFONO:'),
+                pw.Text('EMAIL: info@planetadelibros.com.co'),
+                pw.Text('DIRECCIÓN: Cl. 73 #7-60'),
+                pw.Text('CIUDAD: Bogotá D.C.'),
                 pw.SizedBox(height: 10),
               ],
               // productos
@@ -323,19 +326,30 @@ class InvoiceService with ChangeNotifier {
                     textAlign: pw.TextAlign.center,
                   ),
                   pw.SizedBox(height: 2),
-                  pw.BarcodeWidget(
-                    barcode: pw.Barcode.qrCode(),
-                    data: qrData,
-                    width: 350,
-                    height: 350,
-                    drawText:
-                        false, // muy importante: evita espacio extra abajo
-                    margin: pw.EdgeInsets.zero, // quita todo el margen
+                  // Contenedor con clip para evitar que el QR añada espacio extra
+                  pw.Container(
+                    height: 230, // Mantiene el tamaño original
+                    width: 350, // Mantiene el tamaño original
+                    padding: pw.EdgeInsets.zero,
+                    alignment: pw.Alignment.center,
+                    child: pw.ClipRect(
+                      // Recorta cualquier desbordamiento
+                      child: pw.BarcodeWidget(
+                        barcode: pw.Barcode.qrCode(),
+                        data: qrData,
+                        width: 350, // Tamaño original
+                        height: 350, // Tamaño original
+                        drawText: false,
+                        margin: pw.EdgeInsets.zero,
+                      ),
+                    ),
                   ),
                   pw.SizedBox(height: 2),
-                  pw.Text(
-                    "Proveedor Tecnológico APG\n Consulting Colombia SAS",
-                    textAlign: pw.TextAlign.center,
+                  pw.Center(
+                    child: pw.Text(
+                      "Proveedor Tecnológico APG\n Consulting Colombia SAS",
+                      textAlign: pw.TextAlign.center,
+                    ),
                   ),
                   pw.SizedBox(height: 100),
                 ],
@@ -346,6 +360,44 @@ class InvoiceService with ChangeNotifier {
       ),
     );
 
+    double totalDiscount = 0;
+    double totalPrice = 0;
+    double totalFairPrice = 0;
+
+    double maxDiscountPercent = 0;
+
+    for (var product in products) {
+      final price = double.parse(product.price.toString());
+      final fairPrice = double.parse(product.fairPrice.toString());
+      final quantity = int.parse(product.quantity.toString());
+
+      totalDiscount += (price - fairPrice) * quantity;
+      totalPrice += price * quantity;
+      totalFairPrice += fairPrice * quantity;
+
+      if (price > 0) {
+        final discountPercent = ((price - fairPrice) / price) * 100;
+        print(
+          'Producto: price=$price, fairPrice=$fairPrice, descuento=$discountPercent%',
+        );
+
+        if (discountPercent > maxDiscountPercent) {
+          maxDiscountPercent = discountPercent;
+        }
+      }
+    }
+
+    final mcpode = maxDiscountPercent.round();
+    final mcvade = totalDiscount;
+    final mcvabr = totalPrice;
+    final mcvane = totalFairPrice;
+
+    print('mcpode: $mcpode%');
+    print('mcvade: $mcvade');
+    print('mcvabr: $mcvabr');
+    print('mcvane: $mcvane');
+    print("tipo de factura $tipoFactura");
+
     // insertamos el la tabla de mcabfa
     await DatosMcabfaDao().insertMcabfa(
       McabfaModel(
@@ -353,12 +405,12 @@ class InvoiceService with ChangeNotifier {
         mcnuca: (caja?.numeroCaja.toString() ?? '0'),
         mccecl: int.tryParse(cliente?.clcecl ?? '0') ?? 0,
         mcfefa: DateTime.now().millisecondsSinceEpoch,
-        mchora: DateFormat('hh:mm:ss a').format(DateTime.now()),
+        mchora: DateFormat('hh:mm:ss').format(DateTime.now()),
         mcfopa: getPaymentAbbreviation(paymentValues),
-        mcpode: 0,
-        mcvade: 0,
+        mcpode: mcpode,
+        mcvade: int.tryParse(mcvade.toString()) ?? 0,
         mctifa: tipoFactura,
-        mcvabr: total,
+        mcvabr: mcvabr.toInt(),
         mcvane: total,
         mcesta: "",
         mcvaef: paymentValues['Efectivo'] ?? 0,
@@ -368,6 +420,7 @@ class InvoiceService with ChangeNotifier {
         mctobo: paymentValues['Bono'] ?? 0, // si total de bonos = valor bono
         mcnubo: payments.first.numberBono?.toString() ?? '0',
         mcusua: users.first.nickUsuario,
+        mc_connotacre: "",
         mcusan: "",
         mchoan: 0,
         mcnuau: "",
@@ -431,7 +484,7 @@ class InvoiceService with ChangeNotifier {
       users.first.facturaAlternaUsuario + 1,
     );
 
-    print(caja?.nickUsuario);
+    // print(caja?.nickUsuario);
 
     // actualizamos la factura actual de la caja
     await DatosCajaDao().updateFacturaActual(caja?.nickUsuario as String);

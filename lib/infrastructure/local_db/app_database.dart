@@ -16,7 +16,7 @@ class AppDatabase {
     //String path = join(await getDatabasesPath(), 'app_database.db');
 
     // Elimina la base de datos
-    // await deleteDatabase(path);
+    //await deleteDatabase(path);
     return openDatabase(
       join(await getDatabasesPath(), 'app_database.db'),
       version: 2,
@@ -166,6 +166,7 @@ class AppDatabase {
             mcesta TEXT NOT NULL,
             mcvaef INTEGER NOT NULL,
             mcvach INTEGER NOT NULL,
+            mc_connotacre TEXT NOT NULL,
             mcvata INTEGER NOT NULL,
             mcvabo INTEGER NOT NULL,
             mctobo INTEGER NOT NULL,

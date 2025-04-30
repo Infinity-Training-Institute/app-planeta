@@ -11,6 +11,7 @@ class McabfaModel {
   final int mcvabr;
   final int mcvane;
   final String mcesta;
+  final String? mc_connotacre;
   final int mcvaef;
   final int mcvach;
   final int mcvata;
@@ -30,6 +31,7 @@ class McabfaModel {
   McabfaModel({
     required this.mcnufa,
     required this.mcnuca,
+    this.mc_connotacre,
     required this.mccecl,
     required this.mcfefa,
     required this.mchora,
@@ -86,7 +88,7 @@ class McabfaModel {
       'mccaja': mccaja,
       'mcufe': mcufe,
       'mstand': mstand,
-      'mnube': mnube
+      'mnube': mnube,
     };
   }
 
@@ -119,7 +121,39 @@ class McabfaModel {
       mccaja: map['mccaja'] ?? '',
       mcufe: map['mcufe'] ?? '',
       mstand: (map['mstand'] ?? 0) as int,
-      mnube: (map['mnube'] ?? 0) as int
+      mnube: (map['mnube'] ?? 0) as int,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+    "mcnufa": mcnufa,
+    "mcnuca": mcnuca,
+    "mccecl": mccecl,
+    "mcfefa": mcfefa,
+    "mchora": mchora,
+    "mcfopa": mcfopa,
+    "mcpode": mcpode,
+    "mcvade": mcvade,
+    "mctifa": mctifa,
+    "mcvabr": mcvabr,
+    "mcvane": mcvane,
+    "mcesta": mcesta,
+    "mc_connotacre": mc_connotacre,
+    "mcvaef": mcvaef,
+    "mcvach": mcvach,
+    "mcvata": mcvata,
+    "mcvabo": mcvabo,
+    "mctobo": mctobo,
+    "mcnubo": mcnubo,
+    "mcusua": mcusua,
+    "mcusan": mcusan,
+    "mchoan": mchoan,
+    "mcnuau": mcnuau,
+    "mcnufi": mcnufi,
+    "mccaja": mccaja,
+    "mcufe": mcufe,
+    "mstand": mstand,
+    "mcomfiar": 0,
+    "mcomfiar_credito": 0,
+  };
 }

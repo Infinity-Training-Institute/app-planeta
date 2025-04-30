@@ -62,4 +62,22 @@ class DatosClienteModel {
       clfecha: map['clfecha'] ?? '',
     );
   }
+
+  // Convertir un objeto a una cadena JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'clcecl': clcecl,
+      'clnmcl': clnmcl,
+      'clpacl': clpacl,
+      'clsacl': clsacl,
+      'clmail': clmail,
+      'cldire': cldire,
+      'clciud': clciud,
+      'cltele': cltele,
+      'clusua': clusua,
+      'cl_nube': cl_nube, // Manejar el campo cl_nube
+      'cltipo': cltipo,
+      'clfecha': clfecha,
+    };
+  }
 }

@@ -32,7 +32,7 @@ class DatosMcabfaDao {
       "mccaja": mcabfa.mccaja,
       "mcufe": mcabfa.mcufe,
       "mstand": mcabfa.mstand,
-      "mnube": mcabfa.mnube
+      "mnube": mcabfa.mnube,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -42,7 +42,7 @@ class DatosMcabfaDao {
     final List<Map<String, dynamic>> maps = await db.query("mcabfa");
     return List.generate(maps.length, (i) {
       return McabfaModel(
-        mcnufa: maps[i]["mcnufa"],
+        mcnufa: maps[i]["mcnufa"], // Pass the required positional argument here
         mcnuca: maps[i]["mcnuca"],
         mccecl: maps[i]["mccecl"],
         mcfefa: maps[i]["mcfefa"],
@@ -68,15 +68,30 @@ class DatosMcabfaDao {
         mccaja: maps[i]["mccaja"],
         mcufe: maps[i]["mcufe"],
         mstand: maps[i]["mstand"],
-        mnube: maps[i]["mnube"]
+        mnube: maps[i]["mnube"],
       );
     });
   }
 
-  // funcion para un count
+  // funcion para un count donde el campo mcnube sea 0
   Future<int> getCountMcabfa() async {
     final db = await AppDatabase.database;
-    final List<Map<String, dynamic>> maps = await db.query("mcabfa");
+    final List<Map<String, dynamic>> maps = await db.query(
+      "mcabfa",
+      where: 'mnube = ?',
+      whereArgs: [0],
+    );
     return maps.length;
+  }
+
+  // actualizamos el cambio mnube a 1 en la tabla mlinfa
+  Future<void> updateMnube(int mcnufa) async {
+    final db = await AppDatabase.database;
+    await db.update(
+      'mcabfa',
+      {'mnube': 1},
+      where: 'mcnufa = ?',
+      whereArgs: [mcnufa],
+    );
   }
 }

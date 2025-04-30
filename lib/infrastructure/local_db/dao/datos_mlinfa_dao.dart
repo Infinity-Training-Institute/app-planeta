@@ -21,7 +21,7 @@ class DatosMlinfaDao {
       "mlnufi": mlinfa.mlnufi,
       "mlcaja": mlinfa.mlcaja,
       "mstand": mlinfa.mstand,
-      "mnube": mlinfa.mnube
+      "mnube": mlinfa.mnube,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -46,15 +46,31 @@ class DatosMlinfaDao {
         mlnufi: maps[i]["mlnufi"],
         mlcaja: maps[i]["mlcaja"],
         mstand: maps[i]["mstand"],
-        mnube: maps[i]["mnube"]
+        mnube: maps[i]["mnube"],
       );
     });
   }
 
-  // funcion para un count
+  // funcion para un count donde el mnube sea 0
   Future<int> getCountMlinfa() async {
     final db = await AppDatabase.database;
-    final List<Map<String, dynamic>> maps = await db.query("mlinfa");
+    final List<Map<String, dynamic>> maps = await db.query(
+      'mlinfa',
+      where: 'mnube = ?',
+      whereArgs: [0],
+    );
+
     return maps.length;
+  }
+
+  // actualizamos el mnube a 1 en la base de datos
+  Future<void> updateMnube(int mcnufa) async {
+    final db = await AppDatabase.database;
+    await db.update(
+      'mlinfa',
+      {'mnube': 1},
+      where: 'mcnufa = ?',
+      whereArgs: [mcnufa],
+    );
   }
 }

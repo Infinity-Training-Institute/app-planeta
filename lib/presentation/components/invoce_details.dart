@@ -5,6 +5,7 @@ import 'package:app_planeta/infrastructure/local_db/dao/index.dart';
 import 'package:app_planeta/presentation/components/ean_scanner_component.dart';
 import 'package:app_planeta/presentation/components/modal_component.dart';
 import 'package:app_planeta/services/promocion_cantidad_services.dart';
+import 'package:app_planeta/services/ref_libro_especial.dart';
 import 'package:app_planeta/services/ref_libro_services.dart';
 import 'package:flutter/material.dart';
 import 'package:app_planeta/utils/alert_utils.dart';
@@ -129,6 +130,7 @@ class _InvoceDetails extends State<InvoceDetails> {
 
   List<DataColumn> columns = [];
   final RefLibroServices _refLibroServices = RefLibroServices();
+  final RefLibroEspecial _refLibroServicesEspecial = RefLibroEspecial();
 
   // funciones
   void _scanEAN13() async {
@@ -265,6 +267,44 @@ class _InvoceDetails extends State<InvoceDetails> {
       } else {
         calcularPromociones();
       }
+    });
+
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _referenceController.text = "";
+      _quantityController.text = "1";
+    });
+  }
+
+  void _buildRowEspecial(dynamic config, dynamic data) async {
+    idRows++;
+
+    String reference = _referenceController.text.trim();
+    String quantityText = _quantityController.text.trim();
+
+    int cantidad = int.tryParse(quantityText) ?? 1;
+    double precio = double.tryParse(data['Precio'].toString()) ?? 0.0;
+
+    double descuentoFactor = 1 - (widget.invoiceDiscount / 100.0);
+    double fairPrice = precio * descuentoFactor;
+    double totalCalculado = fairPrice * cantidad;
+
+    final nuevoProducto = Product(
+      reference: reference,
+      description: data['Desc_Referencia'],
+      price: precio,
+      fairPrice: fairPrice,
+      quantity: cantidad.toString(),
+      total: totalCalculado,
+      tipo: 'S',
+    );
+
+    setState(() {
+      products.add(nuevoProducto);
+
+      totalFinal = products.fold<int>(
+        0,
+        (sum, item) => sum + (item.total > 0 ? item.total.toInt() : 0),
+      );
     });
 
     Future.delayed(const Duration(milliseconds: 100), () {
@@ -462,8 +502,7 @@ class _InvoceDetails extends State<InvoceDetails> {
                 i++
               ) {
                 tipoT[i].total = tipoT[i].total * (1 - descuento);
-                tipoT[i].fairPrice =
-                    tipoT[i].fairPrice * (1 - descuento);
+                tipoT[i].fairPrice = tipoT[i].fairPrice * (1 - descuento);
               }
             }
           } else {
@@ -655,41 +694,77 @@ class _InvoceDetails extends State<InvoceDetails> {
       quantity = 1;
     }
 
-    try {
-      final productData = await _refLibroServices.fetchProduct(refText);
+    if (widget.typeFactura == '1') {
+      try {
+        final productData = await _refLibroServices.fetchProduct(refText);
 
-      if (productData == null) {
+        if (productData == null) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se encontró la referencia de este producto.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
         if (!context.mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se encontró la referencia de este producto.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
+
+        final config = {
+          "cantidad": quantity.toString(),
+          "porc_desc": porcDescuento,
+        };
+
+        final tipo = productData['Tipo'];
+        final int repetitions =
+            (tipo == 'D' || tipo == 'T' || tipo == 'Y') ? quantity : 1;
+
+        for (int i = 0; i < repetitions; i++) {
+          _buildRow(config, productData);
+        }
+      } catch (e) {
+        if (context.mounted) {
+          showAlert(
+            context,
+            "Error",
+            "Error al obtener el producto. Intente de nuevo.",
+          );
+        }
       }
-
-      if (!context.mounted) return;
-
-      final config = {
-        "cantidad": quantity.toString(),
-        "porc_desc": porcDescuento,
-      };
-
-      final tipo = productData['Tipo'];
-      final int repetitions =
-          (tipo == 'D' || tipo == 'T' || tipo == 'Y') ? quantity : 1;
-
-      for (int i = 0; i < repetitions; i++) {
-        _buildRow(config, productData);
-      }
-    } catch (e) {
-      if (context.mounted) {
-        showAlert(
-          context,
-          "Error",
-          "Error al obtener el producto. Intente de nuevo.",
+    } else {
+      try {
+        final productData = await _refLibroServicesEspecial.fetchProduct(
+          refText,
         );
+
+        if (productData == null) {
+          if (!context.mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('No se encontró la referencia de este producto.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+
+        if (!context.mounted) return;
+
+        final config = {
+          "cantidad": quantity.toString(),
+          "porc_desc": porcDescuento,
+        };
+
+        _buildRowEspecial(config, productData); // Llamada única
+      } catch (e) {
+        if (context.mounted) {
+          showAlert(
+            context,
+            "Error",
+            "Error al obtener el producto. Intente de nuevo.",
+          );
+        }
       }
     }
   }
@@ -784,24 +859,26 @@ class _InvoceDetails extends State<InvoceDetails> {
         formattedDate = '';
       });
     } else {
-      // Estamos entre 9:30 AM y 6:50 PM
-      setState(() {
-        promoText =
-            promo['Tipo_Promocion'] == '3x2'
-                ? 'Pague 2 Lleve 3'
-                : '50% en segundo producto';
+      if (widget.typeFactura == '1') {
+        // Estamos entre 9:30 AM y 6:50 PM
+        setState(() {
+          promoText =
+              promo['Tipo_Promocion'] == '3x2'
+                  ? 'Pague 2 Lleve 3'
+                  : '50% en segundo producto';
 
-        horaDesde =
-            "${horaDesdeRaw.toString().padLeft(2, '0')}:${(minutosDesdeRaw ?? 0).toString().padLeft(2, '0')}";
-        horaHasta =
-            "${horaHastaRaw.toString().padLeft(2, '0')}:${(minutosHastaRaw ?? 0).toString().padLeft(2, '0')}";
+          horaDesde =
+              "${horaDesdeRaw.toString().padLeft(2, '0')}:${(minutosDesdeRaw ?? 0).toString().padLeft(2, '0')}";
+          horaHasta =
+              "${horaHastaRaw.toString().padLeft(2, '0')}:${(minutosHastaRaw ?? 0).toString().padLeft(2, '0')}";
 
-        promoDate = fechaPromo;
-        formattedDate = DateFormat(
-          "d 'de' MMMM 'de' y",
-          'es_ES',
-        ).format(promoDate!);
-      });
+          promoDate = fechaPromo;
+          formattedDate = DateFormat(
+            "d 'de' MMMM 'de' y",
+            'es_ES',
+          ).format(promoDate!);
+        });
+      }
     }
   }
 

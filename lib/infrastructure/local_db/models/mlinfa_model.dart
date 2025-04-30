@@ -78,4 +78,26 @@ class MlinfaModel {
       mnube: (map['mnube'] as int?) ?? 0,
     );
   }
+
+  // Convertir un objeto a una cadena JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'mlnufc': mlnufc,
+      'mlnuca': mlnuca,
+      'mlcdpr': mlcdpr,
+      'mlnmpr': mlnmpr,
+      'mlpvpr': mlpvpr,
+      'mlpvne': mlpvne,
+      'mlcant': mlcant,
+      'mlesta': mlesta,
+      'mlestao': mlestao,
+      'mlfefa': mlfefa,
+      'mlestf': mlestf,
+      'mlusua': mlusua,
+      'mlnufi': mlnufi,
+      'mlcaja': mlcaja,
+      'mstand': mstand,
+      'mnube': mnube,
+    };
+  }
 }

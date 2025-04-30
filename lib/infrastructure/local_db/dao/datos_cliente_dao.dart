@@ -16,7 +16,7 @@ class DatosClienteDao {
       "clciud": cliente.clciud, // ciudad del cliente
       "cltele": cliente.cltele, // telefono del cliente
       "clusua": cliente.clusua, // usuario que crea el cliente
-      'cl_nube': 0,
+      'cl_nube': cliente.cl_nube, // Manejar el campo cl_nube
       "cltipo":
           cliente.cltipo.isNotEmpty ? cliente.cltipo : '', // Manejar vacío
       "clfecha": cliente.clfecha, // fecha de creación del cliente
@@ -43,5 +43,28 @@ class DatosClienteDao {
         clfecha: maps[i]['clfecha'],
       );
     });
+  }
+
+  // obtenemos el count de los clientes los cuales en el mnube esten en 0
+  Future<int> getCountClientes() async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'mclien',
+      where: 'cl_nube = ?',
+      whereArgs: [0],
+    );
+
+    return maps.length;
+  }
+
+  // actualizamos el mnube a 1 en la base de datos
+  Future<int> updateClienteNube(int id) async {
+    final db = await AppDatabase.database;
+    return await db.update(
+      'mclien',
+      {'cl_nube': 1},
+      where: 'clcecl = ?',
+      whereArgs: [id],
+    );
   }
 }
