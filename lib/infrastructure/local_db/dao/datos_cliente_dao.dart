@@ -6,17 +6,80 @@ class DatosClienteDao {
     final db = await AppDatabase.database;
 
     return await db.insert('mclien', {
-      "clcecl": cliente.clcecl,
-      "clnmcl": cliente.clnmcl,
-      "clpacl": cliente.clpacl,
-      "clsacl": cliente.clsacl,
-      "clmail": cliente.clmail,
-      "cldire": cliente.cldire,
-      "clciud": cliente.clciud,
-      "cltele": cliente.cltele,
-      "clusua": cliente.clusua,
-      "cltipo": cliente.cltipo,
-      "clfecha": cliente.clfecha,
+      "clcecl": cliente.clcecl, // cedula del cliente
+      "clnmcl": cliente.clnmcl, // nombre del cliente
+      "clpacl": cliente.clpacl, // apellido del cliente
+      "clsacl":
+          cliente.clsacl.isNotEmpty ? cliente.clsacl : '', // segundo apellido
+      "clmail": cliente.clmail, // correo del cliente
+      "cldire": cliente.cldire, // direccion del cliente
+      "clciud": cliente.clciud, // ciudad del cliente
+      "cltele": cliente.cltele, // telefono del cliente
+      "clusua": cliente.clusua, // usuario que crea el cliente
+      'cl_nube': cliente.cl_nube, // Manejar el campo cl_nube
+      "cltipo":
+          cliente.cltipo.isNotEmpty ? cliente.cltipo : '', // Manejar vacío
+      "clfecha": cliente.clfecha, // fecha de creación del cliente
     });
+  }
+
+  Future<List<DatosClienteModel>> getClientes() async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query('mclien');
+
+    return List.generate(maps.length, (i) {
+      return DatosClienteModel(
+        clcecl: maps[i]['clcecl'].toString(),
+        clnmcl: maps[i]['clnmcl'],
+        clpacl: maps[i]['clpacl'],
+        clsacl: maps[i]['clsacl'],
+        clmail: maps[i]['clmail'],
+        cldire: maps[i]['cldire'],
+        clciud: maps[i]['clciud'],
+        cltele: maps[i]['cltele'],
+        clusua: maps[i]['clusua'],
+        cl_nube: maps[i]['cl_nube'] ?? '', // Manejar el campo cl_nube
+        cltipo: maps[i]['cltipo'],
+        clfecha: maps[i]['clfecha'],
+      );
+    });
+  }
+
+  // obtenemos el count de los clientes los cuales en el mnube esten en 0
+  Future<int> getCountClientes() async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'mclien',
+      where: 'cl_nube = ?',
+      whereArgs: [0],
+    );
+
+    return maps.length;
+  }
+
+  Future<List<Map<String, dynamic>>>
+  getClientesPendientesDeSincronizar() async {
+    final db = await AppDatabase.database;
+
+    final List<Map<String, dynamic>> maps = await db.query(
+      'mclien',
+      where: 'cl_nube = ?',
+      whereArgs: [0],
+    );
+
+    return maps;
+  }
+
+  // actualizamos el mnube a 1 en la base de datos
+  Future<int> updateClienteNube(int id) async {
+    final db = await AppDatabase.database;
+    final result = await db.update(
+      'mclien',
+      {'cl_nube': 1},
+      where: 'clcecl = ?',
+      whereArgs: [id],
+    );
+    print('Filas afectadas en mclien: $result');
+    return result;
   }
 }

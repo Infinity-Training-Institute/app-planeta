@@ -40,7 +40,10 @@ class AuthProvider with ChangeNotifier {
 
     // si no hay internet usamos la base de datos local
     if (!connectivityProvider.isConnected) {
+      print(email);
+      print(password);
       final localUser = await UserDao().getUserByNickAndPwd(email, password);
+      print(localUser);
 
       if (localUser != null) {
         _isAuthenticated = true;
@@ -76,8 +79,6 @@ class AuthProvider with ChangeNotifier {
             responseUser['usuario'][0]; // Ahora sí accedemos a usuario
 
         String decodedPwd = utf8.decode(base64.decode(userData['Pwd_Usuario']));
-
-        print(decodedPwd);
 
         // Crear instancia de UserModel con los datos extraídos
         final nuevoUsuario = UserModel(

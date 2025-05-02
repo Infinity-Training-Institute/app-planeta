@@ -9,6 +9,7 @@ class ProductsModel {
   final String autor;
   final String selloEditorial;
   final int familia;
+  final int? mnube;
 
   ProductsModel({
     this.id,
@@ -21,6 +22,7 @@ class ProductsModel {
     required this.autor,
     required this.selloEditorial,
     required this.familia,
+    this.mnube,
   });
 
   // Convertir un objeto a un mapa
@@ -36,6 +38,7 @@ class ProductsModel {
       'Autor': autor,
       'Sello_Editorial': selloEditorial,
       'Familia': familia,
+      "mnube": mnube,
     };
   }
 
@@ -52,7 +55,24 @@ class ProductsModel {
       autor: map['Autor'] ?? '',
       selloEditorial: map['Sello_Editorial'] ?? '',
       familia: (map['Familia'] ?? 0) as int,
+      mnube: map["mnube"],
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'ISBN': ISBN,
+      'EAN': EAN,
+      'Referencia': referencia,
+      'Desc_Referencia': descReferencia,
+      'Precio': precio,
+      'Cantidad': cantidad,
+      'Autor': autor,
+      'Sello_Editorial': selloEditorial,
+      'Familia': familia,
+      'mnube': mnube,
+    };
   }
 }
 
@@ -112,7 +132,7 @@ class ProductsPaquetesModel {
   final String codigoEan;
   final String referencia;
   final String descReferencia;
-  final int? precio;
+  final String precio;
   final String usuario;
 
   ProductsPaquetesModel({

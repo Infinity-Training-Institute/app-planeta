@@ -16,4 +16,27 @@ class DatosEmpresaDao {
       'Logo': empresa.logo,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
+
+  Future<List<DatosEmpresaModel>> getEmpresas() async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query('Datos_Empresa');
+
+    return List.generate(maps.length, (i) {
+      return DatosEmpresaModel(
+        id:
+            maps[i]['Id'] is int
+                ? maps[i]['Id']
+                : int.tryParse(maps[i]['Id'].toString()),
+        nombreEmpresa: maps[i]['Nombre_Empresa'],
+        nit: maps[i]['Nit'],
+        direccion: maps[i]['Direccion'],
+        telefono: maps[i]['Telefono'],
+        email: maps[i]['Email'],
+        logo:
+            maps[i]['Logo'] is int
+                ? maps[i]['Logo']
+                : int.tryParse(maps[i]['Logo'].toString()) ?? 0,
+      );
+    });
+  }
 }

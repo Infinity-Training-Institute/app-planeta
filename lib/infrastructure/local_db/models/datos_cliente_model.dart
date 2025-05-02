@@ -8,6 +8,7 @@ class DatosClienteModel {
   final String clciud;
   final String cltele;
   final String clusua;
+  final String cl_nube;
   final String cltipo;
   final String clfecha;
 
@@ -21,6 +22,7 @@ class DatosClienteModel {
     required this.clciud,
     required this.cltele,
     required this.clusua,
+    required this.cl_nube,
     required this.cltipo,
     required this.clfecha,
   });
@@ -36,6 +38,7 @@ class DatosClienteModel {
       'cldire': cldire,
       'clciud': clciud,
       'cltele': cltele,
+      'cl_nube': cl_nube,
       'clusua': clusua,
       'cltipo': cltipo,
       'clfecha': clfecha,
@@ -45,17 +48,36 @@ class DatosClienteModel {
   // Convertir un mapa a un objeto con valores seguros
   factory DatosClienteModel.fromMap(Map<String, dynamic> map) {
     return DatosClienteModel(
-      clcecl: map['clcecl'] ?? '',
-      clnmcl: map['clnmcl'] ?? '',
-      clpacl: map['clpacl'] ?? '',
-      clsacl: map['clsacl'] ?? '',
-      clmail: map['clmail'] ?? '',
-      cldire: map['cldire'] ?? '',
-      clciud: map['clciud'] ?? '',
-      cltele: map['cltele'] ?? '',
-      clusua: map['clusua'] ?? '',
-      cltipo: map['cltipo'] ?? '',
-      clfecha: map['clfecha'] ?? '',
+      clcecl: map['clcecl'],
+      clnmcl: map['clnmcl']?.toString() ?? '',
+      clpacl: map['clpacl']?.toString() ?? '',
+      clsacl: map['clsacl']?.toString() ?? '',
+      clmail: map['clmail']?.toString() ?? '',
+      cldire: map['cldire']?.toString() ?? '',
+      clciud: map['clciud']?.toString() ?? '',
+      cltele: map['cltele']?.toString() ?? '',
+      cl_nube: map['cl_nube']?.toString() ?? '',
+      clusua: map['clusua']?.toString() ?? '',
+      cltipo: map['cltipo']?.toString() ?? '',
+      clfecha: map['clfecha']?.toString() ?? '',
     );
+  }
+
+  // Convertir un objeto a una cadena JSON
+  Map<String, dynamic> toJson() {
+    return {
+      'clcecl': clcecl,
+      'clnmcl': clnmcl,
+      'clpacl': clpacl,
+      'clsacl': clsacl,
+      'clmail': clmail,
+      'cldire': cldire,
+      'clciud': clciud,
+      'cltele': cltele,
+      'clusua': clusua,
+      'cl_nube': cl_nube, // Manejar el campo cl_nube
+      'cltipo': cltipo,
+      'clfecha': clfecha,
+    };
   }
 }

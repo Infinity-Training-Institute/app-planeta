@@ -12,6 +12,11 @@ class AppDatabase {
   }
 
   static Future<Database> _initDatabase() async {
+    // Obtén la ruta de la base de datos
+    //String path = join(await getDatabasesPath(), 'app_database.db');
+
+    // Elimina la base de datos
+    //await deleteDatabase(path);
     return openDatabase(
       join(await getDatabasesPath(), 'app_database.db'),
       version: 2,
@@ -65,7 +70,8 @@ class AppDatabase {
             Cantidad INTEGER NOT NULL,
             Autor TEXT NOT NULL,
             Sello_Editorial TEXT NOT NULL,
-            Familia INTEGER NOT NULL
+            Familia INTEGER NOT NULL,
+            mnube INTEGER NOT NULL
           )
         ''');
 
@@ -96,12 +102,13 @@ class AppDatabase {
           )
         ''');
 
-        // promociones (3x2, 50%, PROMO HORAS)
+        // promociones (3x2, 50%)
         await db.execute('''
           CREATE TABLE IF NOT EXISTS Promociones (
             Cod_Promocion INTEGER PRIMARY KEY AUTOINCREMENT,
             Fecha_Promocion TEXT NOT NULL,
             Hora_Desde TEXT NOT NULL,
+            Minuto_Desde TEXT NOT NULL,
             Hora_Hasta TEXT NOT NULL,
             Minuto_Hasta TEXT NOT NULL,
             Usuario TEXT NOT NULL,
@@ -109,15 +116,17 @@ class AppDatabase {
           )
         ''');
 
-        //Tabla Promocion bono
+        // Tabla Promocion Hora
         await db.execute('''
-          CREATE TABLE Promocion_Bono (
+          CREATE TABLE IF NOT EXISTS Promocion_Horas (
             Cod_Promocion INTEGER PRIMARY KEY AUTOINCREMENT,
             Fecha_Promocion TEXT NOT NULL,
-            Fecha_Promocion_Hasta TEXT NOT NULL,
-            Valor_Maximo INTEGER NOT NULL,
-            Descuento_Promocion INTEGER NOT NULL,
-            Frase_Bono TEXT NOT NULL
+            Hora_Desde TEXT NOT NULL,
+            Minuto_Desde TEXT NOT NULL,
+            Hora_Hasta TEXT NOT NULL,
+            Minuto_Hasta TEXT NOT NULL,
+            Descuento_Promocion INT NOT NULL,
+            Usuario TEXT NOT NULL
           )
         ''');
 
@@ -133,25 +142,6 @@ class AppDatabase {
           )
         ''');
 
-        // tabla promocion paquetes
-        await db.execute('''
-          CREATE TABLE IF NOT EXISTS Promocion_Paquetes (
-            Cod_Promocion INTEGER PRIMARY KEY AUTOINCREMENT,
-            Descripcion_Paquete TEXT NOT NULL,
-            Cantidad_Paquete INTEGER NOT NULL,
-            Precio INTEGER NOT NULL,
-            Usuario TEXT NOT NULL
-          )
-        ''');
-
-        // tabla promocion stand
-        await db.execute('''
-          CREATE TABLE IF NOT EXISTS Promocion_Stand (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            Num_Stand INTEGER NOT NULL
-          )
-        ''');
-
         // texto que ira en el footer de la factura
         await db.execute('''
           CREATE TABLE IF NOT EXISTS Texto_Factura (
@@ -164,7 +154,7 @@ class AppDatabase {
         await db.execute('''
           CREATE TABLE IF NOT EXISTS mcabfa (
             mcnufa INTEGER NOT NULL,
-            mcnuca TEXT NOT NULL,
+            mcnuca TEXT NOT NULL, 
             mccecl INTEGER NOT NULL,
             mcfefa INTEGER NOT NULL,
             mchora TEXT NOT NULL,
@@ -177,6 +167,7 @@ class AppDatabase {
             mcesta TEXT NOT NULL,
             mcvaef INTEGER NOT NULL,
             mcvach INTEGER NOT NULL,
+            mc_connotacre TEXT NULL,
             mcvata INTEGER NOT NULL,
             mcvabo INTEGER NOT NULL,
             mctobo INTEGER NOT NULL,
@@ -225,9 +216,7 @@ class AppDatabase {
             Numero_Resolucion TEXT NOT NULL, -- Resolucion
             Factura_Actual INTEGER NOT NULL, -- # Factura Actual
             Nick_Usuario TEXT NOT NULL, -- Nick Usuario
-            Clave_Tecnica TEXT NOT NULL,
-            Factura_Final INTEGER NOT NULL, -- # Factura Final
-            Datos_Nube INTEGER NOT NULL
+            Clave_Tecnica TEXT NOT NULL
           )
         ''');
 
@@ -256,7 +245,7 @@ class AppDatabase {
             clciud TEXT NOT NULL, -- Ciudad
             cltele TEXT NOT NULL, -- Teléfono (bigint en MySQL → INTEGER en SQLite)
             clusua TEXT NOT NULL, -- Usuario
-            cl_nube INTEGER NOT NULL, -- Datos en la nube
+            cl_nube TEXT NOT NULL, -- ID en la nube (varchar en MySQL → TEXT en SQLite)
             cltipo TEXT NOT NULL, -- Tipo de cliente
             clfecha TEXT NOT NULL -- Fecha (date en MySQL → TEXT en SQLite, formato 'YYYY-MM-DD')
           ) 
@@ -264,19 +253,14 @@ class AppDatabase {
 
         await db.execute('''
           CREATE TABLE IF NOT EXISTS actualizacion_datos (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              fecha_actualizacion TEXT NOT NULL
-          )
-        ''');
-      },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
-          await db.execute('''
-          CREATE TABLE IF NOT EXISTS actualizacion_datos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             fecha_actualizacion TEXT NOT NULL
           )
-        ''');
+          ''');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          // Agregar la nueva tabla o realizar cambios necesarios
         }
       },
     );
@@ -286,5 +270,21 @@ class AppDatabase {
   static Future<List<Map<String, dynamic>>> getUsuarios() async {
     final db = await database;
     return await db.query('Usuarios');
+  }
+
+  static Future<List<Map<String, Object?>>?> getUserByNickName(
+    String nickUsuario,
+  ) async {
+    final db = await AppDatabase.database;
+    final result = await db.query(
+      'Usuarios',
+      where: 'Nick_Usuario = ?',
+      whereArgs: [nickUsuario],
+    );
+
+    if (result.isNotEmpty) {
+      return result;
+    }
+    return null;
   }
 }

@@ -1,7 +1,10 @@
+import 'package:app_planeta/infrastructure/local_db/app_database.dart';
+import 'package:app_planeta/infrastructure/local_db/dao/index.dart';
+import 'package:app_planeta/presentation/screens/sube_datos_nube/sube_datos_nube.dart';
+import 'package:app_planeta/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import '../../../providers/auth_provider.dart';
 import '../home/home_screen.dart';
@@ -18,23 +21,72 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  List<Map<String, dynamic>> usuarios = [];
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   void _submitLogin(BuildContext context) async {
     if (_formKey.currentState!.validate()) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+      // Guardar el valor del email en el provider
+      userProvider.setUsername(_emailController.text.trim());
+
+      final data = await AppDatabase.getUsuarios();
+
+      if (!context.mounted) return; // Verifica si el contexto sigue disponible
       await authProvider.login(
-        _emailController.text,
-        _passwordController.text,
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
         context,
       );
 
-      if (!context.mounted) return; // Verifica si el contexto sigue disponible
-
+      if (!context.mounted) return;
       if (authProvider.isAuthenticated) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        final filteredUser = data.firstWhere(
+          (user) => user['Nick_Usuario'] == _emailController.text.trim(),
+          orElse: () => {},
         );
+
+        print("user $filteredUser");
+
+        // verificamos que no sea nulo
+        if (filteredUser.isNotEmpty) {
+          final tipoUsuario = filteredUser["Tipo_Usuario"];
+
+          switch (tipoUsuario) {
+            case 1:
+              {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SubeDatosNube()),
+                );
+              }
+              break;
+            case 3:
+              {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                );
+              }
+              break;
+            default:
+              {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'El usuario ${{_emailController.text}} no tiene autorización.',
+                    ),
+                  ),
+                );
+              }
+          }
+        }
       } else {
         ScaffoldMessenger.of(
           context,
@@ -49,10 +101,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final authProvider = Provider.of<AuthProvider>(context);
     final theme = Theme.of(context);
-    final String fechaHora = DateFormat(
-      'EEEE, d MMM yyyy • hh:mm a', // hh -> Formato 12 horas, 'a' -> AM/PM
-      'es', // Establece el idioma en español
-    ).format(DateTime.now());
 
     return Scaffold(
       body: Stack(
@@ -62,7 +110,12 @@ class _LoginScreenState extends State<LoginScreen> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Color(0xFF3E7CB1), // Azul claro en la parte inferior
+                  Color.fromARGB(
+                    255,
+                    245,
+                    245,
+                    245,
+                  ), // Azul claro en la parte inferior
                   Color(0xFF123D6F), // Azul intermedio
                   Color(0xFF0A1F44), // Azul muy oscuro en la parte superior
                 ],
@@ -164,21 +217,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                 ],
-              ),
-            ),
-          ),
-
-          // Footer con la fecha y hora
-          Positioned(
-            bottom: 20,
-            left: 0,
-            right: 0,
-            child: Text(
-              fechaHora,
-              textAlign: TextAlign.center,
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                color: Colors.white.withOpacity(0.9),
               ),
             ),
           ),

@@ -17,4 +17,65 @@ class DatosCajaDao {
       'Clave_Tecnica': caja.claveTecnica,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
+
+  Future<List<DatosCajaModel>> getCajas() async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query('Datos_Caja');
+
+    return List.generate(maps.length, (i) {
+      return DatosCajaModel(
+        codCaja: maps[i]['Cod_Caja'],
+        stand: maps[i]['Stand'],
+        numeroCaja: maps[i]['Numero_Caja'],
+        facturaInicio: maps[i]['Factura_Inicio'].toString(),
+        numeroResolucion: maps[i]['Numero_Resolucion'],
+        facturaActual: maps[i]['Factura_Actual'].toString(),
+        nickUsuario: maps[i]['Nick_Usuario'],
+        claveTecnica: maps[i]['Clave_Tecnica'],
+      );
+    });
+  }
+
+  Future<List<DatosCajaModel>> getCajaByNickName(String nickUsuario) async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'Datos_Caja',
+      where: 'Nick_Usuario = ?',
+      whereArgs: [nickUsuario],
+    );
+
+    if (maps.isNotEmpty) {
+      return maps.map((map) => DatosCajaModel.fromMap(map)).toList();
+    } else {
+      return [];
+    }
+  }
+
+  Future<int> updateFacturaActual(String nickUsuario) async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'Datos_Caja',
+      where: 'Nick_Usuario = ?',
+      whereArgs: [nickUsuario],
+    );
+
+    if (maps.isNotEmpty) {
+      final int currentFactura =
+          int.tryParse(maps[0]['Factura_Actual'].toString()) ?? 0;
+      final int nuevaFactura = currentFactura + 1;
+
+      print('Actualizando Factura_Actual: $currentFactura -> $nuevaFactura');
+
+      return await db.update(
+        'Datos_Caja',
+        {'Factura_Actual': nuevaFactura},
+        where: 'Nick_Usuario = ?',
+        whereArgs: [nickUsuario],
+      );
+    } else {
+      print('No se encontró ningún registro con Nick_Usuario = $nickUsuario');
+    }
+
+    return 0;
+  }
 }

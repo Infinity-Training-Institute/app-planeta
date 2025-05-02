@@ -1,8 +1,10 @@
-import 'package:app_planeta/infrastructure/local_db/app_database.dart';
+import 'package:app_planeta/infrastructure/local_db/dao/index.dart';
 import 'package:app_planeta/presentation/screens/facturacion_especial/facturacion_especial.dart';
 import 'package:app_planeta/presentation/screens/home/home_screen.dart';
 import 'package:app_planeta/presentation/screens/login/login_screen.dart';
+import 'package:app_planeta/presentation/screens/sube_datos_nube/sube_datos_nube.dart';
 import 'package:app_planeta/providers/auth_provider.dart';
+import 'package:app_planeta/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -15,6 +17,7 @@ class DrawerComponent extends StatefulWidget {
 
 class _DrawerComponentState extends State<DrawerComponent> {
   List<Map<String, dynamic>> usuarios = [];
+
   bool isLoading = true;
 
   @override
@@ -24,9 +27,10 @@ class _DrawerComponentState extends State<DrawerComponent> {
   }
 
   Future<void> _cargarUsuarios() async {
-    final data = await AppDatabase.getUsuarios();
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final data = await UserDao().getUserByNickName(userProvider.username);
     setState(() {
-      usuarios = data;
+      usuarios = data != null ? [data.toMap()] : [];
       isLoading = false;
     });
   }
@@ -39,6 +43,7 @@ class _DrawerComponentState extends State<DrawerComponent> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!authProvider.isAuthenticated) {
         Future.microtask(() {
+          if (!context.mounted) return;
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -62,44 +67,70 @@ class _DrawerComponentState extends State<DrawerComponent> {
                     child: Image.asset('assets/logo.webp', width: 240),
                   ),
                 ),
-                ListTile(
-                  leading: const Icon(Icons.trolley),
-                  title: const Text('Facturación Normal'),
-                  selected:
-                      ModalRoute.of(context)?.settings.name ==
-                      'facturacion_normal',
-                  selectedTileColor: Colors.grey[300],
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => HomeScreen(),
-                        settings: const RouteSettings(
-                          name: 'facturacion_normal',
+                if (usuarios.isNotEmpty &&
+                    usuarios.first["tipoUsuario"] == 3) ...[
+                  ListTile(
+                    leading: const Icon(Icons.trolley),
+                    title: const Text('Facturación Normal'),
+                    selected:
+                        ModalRoute.of(context)?.settings.name ==
+                        'facturacion_normal',
+                    selectedTileColor: Colors.grey[300],
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => HomeScreen(),
+                          settings: const RouteSettings(
+                            name: 'facturacion_normal',
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.request_quote),
-                  title: const Text('Facturación Especial'),
-                  selected:
-                      ModalRoute.of(context)?.settings.name ==
-                      'facturacion_especial',
-                  selectedTileColor: Colors.grey[300],
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => FacturacionEspecial(),
-                        settings: const RouteSettings(
-                          name: 'facturacion_especial',
+                      );
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.request_quote),
+                    title: const Text('Facturación Especial'),
+                    selected:
+                        ModalRoute.of(context)?.settings.name ==
+                        'facturacion_especial',
+                    selectedTileColor: Colors.grey[300],
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FacturacionEspecial(),
+                          settings: const RouteSettings(
+                            name: 'facturacion_especial',
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      );
+                    },
+                  ),
+                ],
+
+                if (usuarios.isNotEmpty &&
+                    usuarios.first["tipoUsuario"] == 1) ...[
+                  ListTile(
+                    leading: const Icon(Icons.cloud_upload),
+                    title: const Text('Sube datos nube'),
+                    selected:
+                        ModalRoute.of(context)?.settings.name ==
+                        'sube_datos_nube',
+                    selectedTileColor: Colors.grey[300],
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SubeDatosNube(),
+                          settings: const RouteSettings(
+                            name: 'sube_datos_nube',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ],
             ),
           ),
@@ -142,14 +173,14 @@ class _DrawerComponentState extends State<DrawerComponent> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  usuario['Nombre_Usuario'] ?? 'Sin nombre',
+                                  '${usuario["nombreUsuario"]?.trim() ?? ""} ${usuario["apellidoUsuario"]?.trim() ?? "Sin nombre"}',
                                   style: const TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
                                   ),
                                 ),
                                 Text(
-                                  usuario['Nick_Usuario'] ?? 'Sin nick',
+                                  usuario['nickUsuario'] ?? 'Sin nick',
                                   style: TextStyle(
                                     color:
                                         Theme.of(

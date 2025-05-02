@@ -27,7 +27,7 @@ class UserDao {
     final db = await AppDatabase.database;
 
     // Agregar "0" al inicio de la contraseña ingresada
-    String modifiedPassword = "0$password";
+    String modifiedPassword = "$password";
 
     final List<Map<String, dynamic>> maps = await db.query(
       'Usuarios',
@@ -50,6 +50,21 @@ class UserDao {
     return List.generate(maps.length, (i) => UserModel.fromMap(maps[i]));
   }
 
+  Future<UserModel?> getUserByNickName(String usuario) async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      "Usuarios",
+      where: 'Nick_Usuario = ?',
+      whereArgs: [usuario],
+    );
+
+    if (maps.isNotEmpty) {
+      return UserModel.fromMap(maps.first);
+    }
+
+    return null;
+  }
+
   Future<int?> getFacturaAlternaUsuario(String usuario) async {
     final db = await AppDatabase.database;
 
@@ -65,5 +80,18 @@ class UserDao {
     }
 
     return null;
+  }
+
+  Future<void> updateFacturaAlternaUsuario(
+    String usuario,
+    int facturaAlternaUsuario,
+  ) async {
+    final db = await AppDatabase.database;
+    await db.update(
+      'Usuarios',
+      {'Factura_Alterna_Usuario': facturaAlternaUsuario},
+      where: 'Nick_Usuario = ?',
+      whereArgs: [usuario],
+    );
   }
 }
