@@ -40,7 +40,10 @@ class AuthProvider with ChangeNotifier {
 
     // si no hay internet usamos la base de datos local
     if (!connectivityProvider.isConnected) {
+      print(email);
+      print(password);
       final localUser = await UserDao().getUserByNickAndPwd(email, password);
+      print(localUser);
 
       if (localUser != null) {
         _isAuthenticated = true;

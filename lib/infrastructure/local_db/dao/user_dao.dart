@@ -27,7 +27,7 @@ class UserDao {
     final db = await AppDatabase.database;
 
     // Agregar "0" al inicio de la contraseña ingresada
-    String modifiedPassword = "0$password";
+    String modifiedPassword = "$password";
 
     final List<Map<String, dynamic>> maps = await db.query(
       'Usuarios',
