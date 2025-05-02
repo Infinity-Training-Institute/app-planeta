@@ -23,6 +23,7 @@ class PaymentModal extends StatefulWidget {
 class PaymentModalState extends State<PaymentModal> {
   String _selectedPaymentMethod = 'Efectivo';
   String? _selectedCardType;
+  String? _selectedCardType2;
   final TextEditingController _amountController = TextEditingController();
   final TextEditingController _amountMoneyController = TextEditingController();
   final TextEditingController _amountCardController = TextEditingController();
@@ -126,6 +127,9 @@ class PaymentModalState extends State<PaymentModal> {
                 payments: [
                   PaymentEntry(
                     method: _selectedPaymentMethod,
+                    typeCard: _selectedCardType,
+                    numberPhone: _phoneNumberController.text,
+                    typeCard2: _selectedCardType2,
                     amount: totalAmount,
                     reference: authNumber,
                   ),
@@ -224,6 +228,7 @@ class PaymentModalState extends State<PaymentModal> {
           PaymentEntry(
             method: 'Tarjeta',
             amount: cardAmount,
+            typeCard: _selectedCardType,
             reference: _authNumberCard.text.trim(),
           ),
         );
@@ -246,16 +251,10 @@ class PaymentModalState extends State<PaymentModal> {
           PaymentEntry(
             method: 'QR Banco',
             amount: qrAmount,
-            numberPhone: int.tryParse(_phoneNumberController.text.trim()),
+            numberPhone: _phoneNumberController.text,
           ),
         );
       }
-
-      payments.forEach((p) {
-        print(
-          'Método: ${p.method}, Monto: ${p.amount}, Referencia: ${p.reference}',
-        );
-      });
 
       Navigator.push(
         context,
@@ -264,7 +263,12 @@ class PaymentModalState extends State<PaymentModal> {
               (context) => SummaryInvoiceComponent(
                 invoiceValue: totalAmount,
                 payments: payments,
-                changeAmount: cashAmount + qrAmount + cardAmount - totalAmount,
+                changeAmount:
+                    cashAmount +
+                    qrAmount +
+                    cardAmount +
+                    bonoValue -
+                    totalAmount,
                 products: widget.productsData,
                 typeInvoice: widget.typeOfInvoice,
               ),
@@ -360,6 +364,38 @@ class PaymentModalState extends State<PaymentModal> {
                 },
                 decoration: const InputDecoration(
                   labelText: 'Tipo de tarjeta',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: _selectedCardType2,
+                items:
+                    [
+                          "Maestro",
+                          "Visa",
+                          "MasterCard",
+                          "American Express",
+                          "Diners Club",
+                          "Colsubsidio",
+                          "Visa Electron",
+                          "Nequi",
+                          "Daviplata",
+                        ]
+                        .map(
+                          (method) => DropdownMenuItem(
+                            value: method,
+                            child: Text(method),
+                          ),
+                        )
+                        .toList(),
+                onChanged: (value) {
+                  setState(() {
+                    _selectedCardType2 = value!;
+                  });
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Tipo de tarjeta 2',
                   border: OutlineInputBorder(),
                 ),
               ),

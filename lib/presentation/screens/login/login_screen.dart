@@ -1,3 +1,7 @@
+import 'package:app_planeta/infrastructure/local_db/app_database.dart';
+import 'package:app_planeta/infrastructure/local_db/dao/index.dart';
+import 'package:app_planeta/presentation/screens/sube_datos_nube/sube_datos_nube.dart';
+import 'package:app_planeta/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -17,23 +21,72 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  List<Map<String, dynamic>> usuarios = [];
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   void _submitLogin(BuildContext context) async {
     if (_formKey.currentState!.validate()) {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+      // Guardar el valor del email en el provider
+      userProvider.setUsername(_emailController.text.trim());
+
+      final data = await AppDatabase.getUsuarios();
+
+      if (!context.mounted) return; // Verifica si el contexto sigue disponible
       await authProvider.login(
         _emailController.text.trim(),
         _passwordController.text.trim(),
         context,
       );
 
-      if (!context.mounted) return; // Verifica si el contexto sigue disponible
-
+      if (!context.mounted) return;
       if (authProvider.isAuthenticated) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        final filteredUser = data.firstWhere(
+          (user) => user['Nick_Usuario'] == _emailController.text.trim(),
+          orElse: () => {},
         );
+
+        print("user $filteredUser");
+
+        // verificamos que no sea nulo
+        if (filteredUser.isNotEmpty) {
+          final tipoUsuario = filteredUser["Tipo_Usuario"];
+
+          switch (tipoUsuario) {
+            case 1:
+              {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const SubeDatosNube()),
+                );
+              }
+              break;
+            case 3:
+              {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const HomeScreen()),
+                );
+              }
+              break;
+            default:
+              {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'El usuario ${{_emailController.text}} no tiene autorización.',
+                    ),
+                  ),
+                );
+              }
+          }
+        }
       } else {
         ScaffoldMessenger.of(
           context,
@@ -57,7 +110,12 @@ class _LoginScreenState extends State<LoginScreen> {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  Color.fromARGB(255, 245, 245, 245), // Azul claro en la parte inferior
+                  Color.fromARGB(
+                    255,
+                    245,
+                    245,
+                    245,
+                  ), // Azul claro en la parte inferior
                   Color(0xFF123D6F), // Azul intermedio
                   Color(0xFF0A1F44), // Azul muy oscuro en la parte superior
                 ],

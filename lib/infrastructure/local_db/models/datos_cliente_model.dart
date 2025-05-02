@@ -48,18 +48,18 @@ class DatosClienteModel {
   // Convertir un mapa a un objeto con valores seguros
   factory DatosClienteModel.fromMap(Map<String, dynamic> map) {
     return DatosClienteModel(
-      clcecl: map['clcecl'] ?? '',
-      clnmcl: map['clnmcl'] ?? '',
-      clpacl: map['clpacl'] ?? '',
-      clsacl: map['clsacl'] ?? '',
-      clmail: map['clmail'] ?? '',
-      cldire: map['cldire'] ?? '',
-      clciud: map['clciud'] ?? '',
-      cltele: map['cltele'] ?? '',
-      cl_nube: map['cl_nube'] ?? '', // Manejar el campo cl_nube
-      clusua: map['clusua'] ?? '',
-      cltipo: map['cltipo'] ?? '',
-      clfecha: map['clfecha'] ?? '',
+      clcecl: map['clcecl'],
+      clnmcl: map['clnmcl']?.toString() ?? '',
+      clpacl: map['clpacl']?.toString() ?? '',
+      clsacl: map['clsacl']?.toString() ?? '',
+      clmail: map['clmail']?.toString() ?? '',
+      cldire: map['cldire']?.toString() ?? '',
+      clciud: map['clciud']?.toString() ?? '',
+      cltele: map['cltele']?.toString() ?? '',
+      cl_nube: map['cl_nube']?.toString() ?? '',
+      clusua: map['clusua']?.toString() ?? '',
+      cltipo: map['cltipo']?.toString() ?? '',
+      clfecha: map['clfecha']?.toString() ?? '',
     );
   }
 

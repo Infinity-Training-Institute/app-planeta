@@ -70,7 +70,8 @@ class AppDatabase {
             Cantidad INTEGER NOT NULL,
             Autor TEXT NOT NULL,
             Sello_Editorial TEXT NOT NULL,
-            Familia INTEGER NOT NULL
+            Familia INTEGER NOT NULL,
+            mnube INTEGER NOT NULL
           )
         ''');
 
@@ -166,7 +167,7 @@ class AppDatabase {
             mcesta TEXT NOT NULL,
             mcvaef INTEGER NOT NULL,
             mcvach INTEGER NOT NULL,
-            mc_connotacre TEXT NOT NULL,
+            mc_connotacre TEXT NULL,
             mcvata INTEGER NOT NULL,
             mcvabo INTEGER NOT NULL,
             mctobo INTEGER NOT NULL,
@@ -269,5 +270,21 @@ class AppDatabase {
   static Future<List<Map<String, dynamic>>> getUsuarios() async {
     final db = await database;
     return await db.query('Usuarios');
+  }
+
+  static Future<List<Map<String, Object?>>?> getUserByNickName(
+    String nickUsuario,
+  ) async {
+    final db = await AppDatabase.database;
+    final result = await db.query(
+      'Usuarios',
+      where: 'Nick_Usuario = ?',
+      whereArgs: [nickUsuario],
+    );
+
+    if (result.isNotEmpty) {
+      return result;
+    }
+    return null;
   }
 }

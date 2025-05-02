@@ -36,10 +36,23 @@ class DatosCajaDao {
     });
   }
 
+  Future<List<DatosCajaModel>> getCajaByNickName(String nickUsuario) async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'Datos_Caja',
+      where: 'Nick_Usuario = ?',
+      whereArgs: [nickUsuario],
+    );
+
+    if (maps.isNotEmpty) {
+      return maps.map((map) => DatosCajaModel.fromMap(map)).toList();
+    } else {
+      return [];
+    }
+  }
+
   Future<int> updateFacturaActual(String nickUsuario) async {
     final db = await AppDatabase.database;
-
-    print('Buscando caja con Nick_Usuario = $nickUsuario');
     final List<Map<String, dynamic>> maps = await db.query(
       'Datos_Caja',
       where: 'Nick_Usuario = ?',

@@ -9,33 +9,39 @@ class UploadDataToCloud {
     required List<Map<String, dynamic>> mcabfa,
     required List<Map<String, dynamic>> mlinfa,
     required List<Map<String, dynamic>> mclient,
+    required List<Map<String, dynamic>> products,
   }) async {
-    final payload = {"mcabfa": mcabfa, "mlinfa": mlinfa, "mclient": mclient};
+    final payload = {
+      "mcabfa": mcabfa,
+      "mlinfa": mlinfa,
+      "mclient": mclient,
+      "products": products,
+    };
 
-    print(payload);
-
-    try {} catch (e) {
-      print('Error al enviar datos: $e');
-    }
+    print('Payload: $payload');
 
     try {
       final response = await dio.post(
         apiUrl,
-        options: Options(headers: {'Content-Type': 'application/json'}),
         data: payload,
+        options: Options(headers: {'Content-Type': 'application/json'}),
       );
 
-      if (response.statusCode == 200) {
-        final data = response.data;
-        print('MCABFA insertados: ${data['mcabfa_insertados']}');
-        print('MLINFA insertados: ${data['mlinfa_insertados']}');
-        print('MCLIENTE insertados: ${data['mcliente_insertados']}');
-        print('Errores: ${data['errores']}');
+      print('Respuesta del servidor: ${response.data}');
+    } on DioException catch (e) {
+      if (e.response != null) {
+        // Verifica si el código de estado es 500 (error del servidor)
+        if (e.response?.statusCode == 500) {
+          print('Error 500 del servidor: ${e.response?.data}');
+        } else {
+          print('Error de la respuesta: ${e.response?.statusCode}, ${e.response?.data}');
+        }
       } else {
-        print('Error del servidor: ${response.statusCode}');
+        // Error relacionado con la conexión (sin respuesta)
+        print('Error sin respuesta: ${e.message}');
       }
     } catch (e) {
-      print('Error al enviar datos: $e');
+      print('Otro error inesperado: $e');
     }
   }
 }

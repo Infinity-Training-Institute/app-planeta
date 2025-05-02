@@ -50,6 +50,21 @@ class UserDao {
     return List.generate(maps.length, (i) => UserModel.fromMap(maps[i]));
   }
 
+  Future<UserModel?> getUserByNickName(String usuario) async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      "Usuarios",
+      where: 'Nick_Usuario = ?',
+      whereArgs: [usuario],
+    );
+
+    if (maps.isNotEmpty) {
+      return UserModel.fromMap(maps.first);
+    }
+
+    return null;
+  }
+
   Future<int?> getFacturaAlternaUsuario(String usuario) async {
     final db = await AppDatabase.database;
 

@@ -230,7 +230,7 @@ class SyncronizedData with ChangeNotifier {
               clusua: item['clusua'],
               cltipo: item['cltipo'],
               clfecha: item['clfecha'],
-              cl_nube: 1 as String, // Manejar el campo cl_nube
+              cl_nube: '1', // ← Aquí corregido
             ),
           ),
           insertData<ProductsModel>(
@@ -247,6 +247,7 @@ class SyncronizedData with ChangeNotifier {
               autor: item['Autor'],
               selloEditorial: item['Sello_Editorial'],
               familia: int.parse(item['Familia']),
+              mnube: 1,
             ),
           ),
           insertData<ProductsEspecialsModel>(

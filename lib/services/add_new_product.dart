@@ -20,9 +20,9 @@ class AddNewProductService {
       autor: '',
       selloEditorial: '',
       familia: 0,
+      mnube: 0
     );
 
-    final result = await _productsDao.insertProduct(product);
-    print('✅ Producto guardado con ID: $result');
+    await _productsDao.insertProduct(product);
   }
 }

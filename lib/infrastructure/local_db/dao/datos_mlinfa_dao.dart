@@ -64,13 +64,14 @@ class DatosMlinfaDao {
   }
 
   // actualizamos el mnube a 1 en la base de datos
-  Future<void> updateMnube(int mcnufa) async {
+  Future<void> updateMnube(dynamic mlnufc) async {
     final db = await AppDatabase.database;
-    await db.update(
+    final result = await db.update(
       'mlinfa',
       {'mnube': 1},
-      where: 'mcnufa = ?',
-      whereArgs: [mcnufa],
+      where: 'mlnufc = ?',
+      whereArgs: [mlnufc],
     );
+    print('Filas afectadas en mcabfa: $result');
   }
 }

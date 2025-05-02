@@ -1,4 +1,7 @@
+import 'package:app_planeta/infrastructure/local_db/dao/index.dart';
+import 'package:app_planeta/presentation/screens/sube_datos_nube/sube_datos_nube.dart';
 import 'package:app_planeta/providers/syncronized_data.dart';
+import 'package:app_planeta/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -30,6 +33,7 @@ void main() async {
       providers: [
         ChangeNotifierProvider(create: (_) => SyncronizedData()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
       ],
       child: const MyApp(),
@@ -81,13 +85,44 @@ class MyApp extends StatelessWidget {
 class ConnectionWrapper extends StatelessWidget {
   const ConnectionWrapper({super.key});
 
+  Future<int?> _getTipoUsuario(BuildContext context) async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final usuario = await UserDao().getUserByNickName(userProvider.username);
+
+    if (usuario != null) {
+      final tipo = usuario.tipoUsuario;
+      return tipo ;
+    }
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
 
-    return authProvider.isAuthenticated
-        ? const HomeScreen()
-        : const LoginScreen();
+    return FutureBuilder<int?>(
+      future: _getTipoUsuario(context), // Aquí se pasa el context
+      builder: (context, snapshot) {
+        final tipoUsuario = snapshot.data;
+
+        if (!authProvider.isAuthenticated) {
+          return const LoginScreen();
+        }
+
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (tipoUsuario == 1) {
+          return const SubeDatosNube();
+        } else if (tipoUsuario == 3) {
+          return const HomeScreen();
+        }
+
+        // Fallback
+        return const Center(child: Text('Usuario no autorizado'));
+      },
+    );
   }
 }
 

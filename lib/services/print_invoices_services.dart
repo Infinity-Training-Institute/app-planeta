@@ -7,6 +7,7 @@ import 'package:app_planeta/infrastructure/local_db/models/datos_cliente_model.d
 import 'package:app_planeta/infrastructure/local_db/models/mcabfa_model.dart';
 import 'package:app_planeta/infrastructure/local_db/models/mlinfa_model.dart';
 import 'package:app_planeta/presentation/components/invoce_details.dart';
+import 'package:app_planeta/providers/user_provider.dart';
 import 'package:app_planeta/services/ref_libro_especial.dart';
 import 'package:app_planeta/utils/create_cufe.dart';
 import 'package:app_planeta/utils/currency_formatter.dart';
@@ -14,9 +15,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
+import 'package:provider/provider.dart';
 
 class InvoiceService with ChangeNotifier {
   Future<pw.Document?> generateInvoice(
+    BuildContext context,
     List<Product> products,
     List<DatosClienteModel> clientes,
     int total,
@@ -26,28 +29,13 @@ class InvoiceService with ChangeNotifier {
   ) async {
     final pdf = pw.Document();
     final String tipoFactura;
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
 
     // obtenemos los datos necesarios para la factura
     final datosEmpresas = await DatosEmpresaDao().getEmpresas();
     final datosCliente = await DatosClienteDao().getClientes();
     final datosCaja = await DatosCajaDao().getCajas();
-    final users = await UserDao().getUsers();
-
-    users.forEach((user) {
-      print({
-        "codUsuario": user.codUsuario,
-        "nombreUsuario": user.nombreUsuario,
-        "apellidoUsuario": user.apellidoUsuario,
-        "nickUsuario": user.nickUsuario,
-        "pwdUsuario": user.pwdUsuario,
-        "tipoUsuario": user.tipoUsuario,
-        "estadoUsuario": user.estadoUsuario,
-        "serieImpUsuario": user.serieImpUsuario,
-        "facturaAlternaUsuario": user.facturaAlternaUsuario,
-        "cajaUsuario": user.cajaUsuario,
-        "stand": user.stand,
-      });
-    });
+    final users = await UserDao().getUserByNickName(userProvider.username);
 
     // tomamos el primer registro si existe
     final empresa = datosEmpresas.isNotEmpty ? datosEmpresas.first : null;
@@ -71,6 +59,22 @@ class InvoiceService with ChangeNotifier {
       }
     }
 
+    String obtenerAlias(String metodo) {
+      final aliasMap = {
+        "Maestro": "MA",
+        "Visa": "VI",
+        "MasterCard": "MS",
+        "American Express": "AM",
+        "Diners Club": "DI",
+        "Colsubsidio": "CO",
+        "Visa Electron": "VE",
+        "Nequi": "NQ",
+        "Daviplata": "DP",
+      };
+
+      return aliasMap[metodo] ?? "NA"; // Retorna "NA" si no se encuentra
+    }
+
     String getPaymentAbbreviation(Map<String, int> paymentValues) {
       final active =
           paymentValues.entries
@@ -78,8 +82,12 @@ class InvoiceService with ChangeNotifier {
               .map((e) => e.key)
               .toList();
       if (active.length > 1) return 'M';
-      return {'Efectivo': 'E', 'Tarjeta': 'T', 'Bono': 'B', 'QR': 'C'}[active
-              .first] ??
+      return {
+            'Efectivo': 'E',
+            'Tarjeta': 'T',
+            'Bono': 'B',
+            'QR Banco': 'C',
+          }[active.first] ??
           '';
     }
 
@@ -113,8 +121,6 @@ class InvoiceService with ChangeNotifier {
       tipoFactura = "E";
     }
 
-    print(caja?.facturaActual);
-
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.roll80,
@@ -131,7 +137,6 @@ class InvoiceService with ChangeNotifier {
                 pw.Text('DIRECCION: ${empresa.direccion} PBX: 6079997'),
                 pw.Text('DIRECCION ELECTRONICA: ${empresa.email}'),
               ],
-              pw.SizedBox(height: 10),
               if (caja != null) ...[
                 pw.Text(
                   'FACTURA ELECTRÓNICA DE VENTA ${caja.numeroCaja}-${caja.facturaActual}',
@@ -291,11 +296,66 @@ class InvoiceService with ChangeNotifier {
                   // TODO: PONER EL CAJERO
                   pw.SizedBox(height: 10),
                   pw.Text(
-                    'Cajero: ${users.first.nickUsuario} - Consecutivo ${users.first.facturaAlternaUsuario} - ${users.first.cajaUsuario}',
+                    'Cajero: ${users?.nickUsuario} - Consecutivo ${users?.facturaAlternaUsuario} - ${users?.cajaUsuario}',
                   ),
-                  pw.Text('Forma de Pago: ${paymentValues.keys.first}'),
-                  pw.SizedBox(height: 10),
-                  pw.SizedBox(height: 10),
+
+                  if (payments.length > 1) ...[
+                    // Mostrar solo "Mixto" si hay más de un método
+                    pw.Text('Forma de Pago: Mixto'),
+                    pw.SizedBox(height: 5),
+                    pw.Text(
+                      // ignore: prefer_interpolation_to_compose_strings
+                      'Nu. Aut. Tarjeta ' +
+                          [
+                            for (var pay in payments)
+                              if (pay.method.contains("Tarjeta") &&
+                                  pay.typeCard != null &&
+                                  pay.typeCard.isNotEmpty)
+                                obtenerAlias(pay.typeCard),
+                            for (var pay in payments)
+                              if (pay.reference != null &&
+                                  pay.reference.isNotEmpty)
+                                pay.reference,
+                            for (var pay in payments)
+                              if (pay.numberPhone != null &&
+                                  pay.numberPhone.isNotEmpty)
+                                pay.numberPhone,
+                          ].join(" - "),
+                    ),
+                  ] else ...[
+                    for (var pay in payments) ...[
+                      pw.Text('Forma de Pago: ${pay.method}'),
+                      pw.SizedBox(height: 5),
+                      if (pay.method.contains("Tarjeta")) ...[
+                        pw.Text(
+                          // ignore: prefer_interpolation_to_compose_strings
+                          "Nu. Aut. Tarjeta - " +
+                              [
+                                if (pay.typeCard != null &&
+                                    pay.typeCard.isNotEmpty)
+                                  obtenerAlias(pay.typeCard),
+                                if (pay.typeCard2 != null &&
+                                    pay.typeCard2.isNotEmpty)
+                                  obtenerAlias(pay.typeCard2),
+                                if (pay.reference != null &&
+                                    pay.reference.isNotEmpty)
+                                  pay.reference,
+                              ].join(" - "),
+                        ),
+                      ],
+                      if (pay.method.contains("QR Banco")) ...[
+                        pw.Text(
+                          "Nu. Aut. Tarjeta - - ${pay.numberPhone ?? ''}",
+                        ),
+                      ],
+
+                      if (pay.method.contains("Efectivo") ||
+                          pay.method.contains("Bono")) ...[
+                        pw.Text("Nu. Aut. Tarjeta --"),
+                      ],
+                    ],
+                  ],
+                  pw.SizedBox(height: 5),
                   pw.Text(
                     'La factura electrónica de venta fue remitida al correo electrónico suministrado por usted a Editorial Planeta Colombiana S.A.\n'
                     'En caso de no recibirla, por favor comunicarse al correo electrónico cartera@planeta.com.co',
@@ -310,7 +370,7 @@ class InvoiceService with ChangeNotifier {
                     'VIGENCIA: 24 MESES, PREFIJO ${caja?.numeroCaja}, AUTORIZA DESDE ${caja?.facturaInicio} AL ${caja?.facturaActual}',
                     textAlign: pw.TextAlign.center,
                   ),
-                  pw.SizedBox(height: 10),
+                  pw.SizedBox(height: 5),
                   pw.Text(
                     'Responsable del impuesto sobre las ventas\n Agente retenedor del IVA\n Código Actividad Económica ICABogotá D.C. 8551 Tarifa 9.66 X Mil\n',
                     textAlign: pw.TextAlign.center,
@@ -362,7 +422,7 @@ class InvoiceService with ChangeNotifier {
 
     double totalDiscount = 0;
     double totalPrice = 0;
-    double totalFairPrice = 0;
+    //double totalFairPrice = 0;
 
     double maxDiscountPercent = 0;
 
@@ -373,13 +433,10 @@ class InvoiceService with ChangeNotifier {
 
       totalDiscount += (price - fairPrice) * quantity;
       totalPrice += price * quantity;
-      totalFairPrice += fairPrice * quantity;
+      // totalFairPrice += fairPrice * quantity;
 
       if (price > 0) {
         final discountPercent = ((price - fairPrice) / price) * 100;
-        print(
-          'Producto: price=$price, fairPrice=$fairPrice, descuento=$discountPercent%',
-        );
 
         if (discountPercent > maxDiscountPercent) {
           maxDiscountPercent = discountPercent;
@@ -389,14 +446,32 @@ class InvoiceService with ChangeNotifier {
 
     final mcpode = maxDiscountPercent.round();
     final mcvade = totalDiscount;
-    final mcvabr = totalPrice;
-    final mcvane = totalFairPrice;
 
-    print('mcpode: $mcpode%');
-    print('mcvade: $mcvade');
-    print('mcvabr: $mcvabr');
-    print('mcvane: $mcvane');
-    print("tipo de factura $tipoFactura");
+    print(mcvade);
+    final mcvabr = totalPrice;
+    // final mcvane = totalFairPrice;
+
+    final bonoList = payments.where((p) => p.method == 'Bono').toList();
+    dynamic bonoValue; // Valor unitario del bono
+    dynamic bonoCount;
+    dynamic totalBonos;
+    if (bonoList.isNotEmpty) {
+      final bonoPayment = bonoList.first;
+      bonoValue = bonoPayment.amount; // Valor unitario del bono
+      bonoCount = bonoPayment.numberBono ?? 0;
+      totalBonos = bonoValue * bonoCount;
+    }
+
+    String? referenciaTarjeta;
+
+    try {
+      final tarjetaOMixto = payments.firstWhere(
+        (p) => p.method.contains('Tarjeta') || p.method.contains('Mixto'),
+      );
+      referenciaTarjeta = tarjetaOMixto.reference ?? '';
+    } catch (_) {
+      referenciaTarjeta = '';
+    }
 
     // insertamos el la tabla de mcabfa
     await DatosMcabfaDao().insertMcabfa(
@@ -404,27 +479,27 @@ class InvoiceService with ChangeNotifier {
         mcnufa: int.tryParse(caja?.facturaActual ?? '') ?? 0,
         mcnuca: (caja?.numeroCaja.toString() ?? '0'),
         mccecl: int.tryParse(cliente?.clcecl ?? '0') ?? 0,
-        mcfefa: DateTime.now().millisecondsSinceEpoch,
+        mcfefa: int.parse(DateFormat('yyyyMMdd').format(DateTime.now())),
         mchora: DateFormat('hh:mm:ss').format(DateTime.now()),
         mcfopa: getPaymentAbbreviation(paymentValues),
         mcpode: mcpode,
-        mcvade: int.tryParse(mcvade.toString()) ?? 0,
+        mcvade: mcvade.toInt(),
         mctifa: tipoFactura,
         mcvabr: mcvabr.toInt(),
         mcvane: total,
         mcesta: "",
         mcvaef: paymentValues['Efectivo'] ?? 0,
-        mcvach: paymentValues['QR'] ?? 0,
+        mcvach: paymentValues['QR Banco'] ?? 0,
         mcvata: paymentValues['Tarjeta'] ?? 0,
-        mcvabo: paymentValues['Bono'] ?? 0,
-        mctobo: paymentValues['Bono'] ?? 0, // si total de bonos = valor bono
-        mcnubo: payments.first.numberBono?.toString() ?? '0',
-        mcusua: users.first.nickUsuario,
+        mcvabo: bonoValue ?? 0,
+        mctobo: totalBonos ?? 0, // si total de bonos = valor bono
+        mcnubo: bonoCount.toString(),
+        mcusua: users!.nickUsuario,
         mc_connotacre: "",
         mcusan: "",
         mchoan: 0,
-        mcnuau: "",
-        mcnufi: users.first.facturaAlternaUsuario,
+        mcnuau: referenciaTarjeta.toString(),
+        mcnufi: users.facturaAlternaUsuario,
         mccaja: caja?.numeroCaja as String,
         mcufe: cufeData['cufe'] ?? '',
         mstand: int.tryParse(caja?.stand ?? '') ?? 0,
@@ -469,8 +544,8 @@ class InvoiceService with ChangeNotifier {
           mlestao: obsLinfa,
           mlfefa: DateTime.now().millisecondsSinceEpoch,
           mlestf: '',
-          mlusua: '',
-          mlnufi: 0,
+          mlusua: users.nickUsuario,
+          mlnufi: users.facturaAlternaUsuario,
           mlcaja: caja?.numeroCaja as String,
           mstand: int.tryParse(caja?.stand ?? '') ?? 0,
           mnube: 0,
@@ -480,13 +555,11 @@ class InvoiceService with ChangeNotifier {
 
     // actualizamos el numero de la factura alterna
     await UserDao().updateFacturaAlternaUsuario(
-      users.first.nickUsuario,
-      users.first.facturaAlternaUsuario + 1,
+      users.nickUsuario,
+      users.facturaAlternaUsuario + 1,
     );
 
-    // print(caja?.nickUsuario);
-
-    // actualizamos la factura actual de la caja
+    //actualizamos la factura actual de la caja
     await DatosCajaDao().updateFacturaActual(caja?.nickUsuario as String);
 
     return pdf;

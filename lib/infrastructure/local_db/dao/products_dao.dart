@@ -15,6 +15,7 @@ class ProductsDao {
       'Autor': product.autor,
       'Sello_Editorial': product.selloEditorial,
       'Familia': product.familia,
+      'mnube': product.mnube,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -36,6 +37,39 @@ class ProductsDao {
         familia: maps[i]['Familia'],
       );
     });
+  }
+
+  Future<int> getCountProductosNoNube() async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'Productos',
+      where: 'mnube = ?',
+      whereArgs: [0],
+    );
+
+    return maps.length;
+  }
+
+  Future<List<ProductsModel>> getProductsNotSynced() async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> result = await db.query(
+      'Productos',
+      where: 'mnube = ?',
+      whereArgs: [0],
+    );
+
+    return result.map((map) => ProductsModel.fromMap(map)).toList();
+  }
+
+  Future<void> updateProducto(dynamic id) async {
+    final db = await AppDatabase.database;
+    final result = await db.update(
+      'productos',
+      {'mnube': 1},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    print('Filas afectadas en productos: $result');
   }
 }
 

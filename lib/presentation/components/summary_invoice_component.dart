@@ -3,23 +3,29 @@ import 'dart:typed_data';
 import 'package:app_planeta/infrastructure/local_db/models/datos_cliente_model.dart';
 import 'package:app_planeta/presentation/components/invoce_details.dart';
 import 'package:app_planeta/presentation/screens/home/home_screen.dart';
+import 'package:app_planeta/providers/user_provider.dart';
 import 'package:app_planeta/services/add_new_client.dart';
 import 'package:app_planeta/services/print_invoices_services.dart';
 import 'package:app_planeta/utils/currency_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
+import 'package:provider/provider.dart';
 
 class PaymentEntry {
   final String method;
+  final String? typeCard;
+  final String? typeCard2;
   final String? reference;
   final int amount;
-  final int? numberPhone;
+  final String? numberPhone;
   final int? numberBono;
   final int? totalBono;
   final int? numberOfBonoUsed;
 
   PaymentEntry({
     required this.method,
+    this.typeCard,
+    this.typeCard2,
     required this.amount,
     this.reference,
     this.numberPhone,
@@ -352,6 +358,7 @@ class SummaryInvoiceComponent extends StatelessWidget {
             onPressed: () async {
               if (_createCustomerNotifier.value) {
                 try {
+                  final userProvider = Provider.of<UserProvider>(context, listen: false);
                   // Create a DatosClienteModel properly using the fromMap constructor or manually
                   final clientModel = DatosClienteModel(
                     clcecl: _cedulaController.text,
@@ -362,7 +369,7 @@ class SummaryInvoiceComponent extends StatelessWidget {
                     cldire: _direccionController.text,
                     clciud: _ciudadController.text,
                     cltele: _telefonoController.text,
-                    clusua: 'usuario',
+                    clusua: userProvider.username,
                     cltipo:
                         _selectedPersonType
                             .value, // Pass the string value directly
@@ -411,7 +418,9 @@ class SummaryInvoiceComponent extends StatelessWidget {
                   }
                 }
               }
+              if (!context.mounted) return;
               final pdf = await invoiceService.generateInvoice(
+                context,
                 products,
                 datosClientes,
                 invoiceValue,

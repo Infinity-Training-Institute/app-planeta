@@ -57,14 +57,29 @@ class DatosClienteDao {
     return maps.length;
   }
 
+  Future<List<Map<String, dynamic>>>
+  getClientesPendientesDeSincronizar() async {
+    final db = await AppDatabase.database;
+
+    final List<Map<String, dynamic>> maps = await db.query(
+      'mclien',
+      where: 'cl_nube = ?',
+      whereArgs: [0],
+    );
+
+    return maps;
+  }
+
   // actualizamos el mnube a 1 en la base de datos
   Future<int> updateClienteNube(int id) async {
     final db = await AppDatabase.database;
-    return await db.update(
+    final result = await db.update(
       'mclien',
       {'cl_nube': 1},
       where: 'clcecl = ?',
       whereArgs: [id],
     );
+    print('Filas afectadas en mclien: $result');
+    return result;
   }
 }

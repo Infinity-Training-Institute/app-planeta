@@ -85,7 +85,7 @@ class DatosMcabfaDao {
   }
 
   // actualizamos el cambio mnube a 1 en la tabla mlinfa
-  Future<void> updateMnube(int mcnufa) async {
+  Future<void> updateMnube(dynamic mcnufa) async {
     final db = await AppDatabase.database;
     await db.update(
       'mcabfa',

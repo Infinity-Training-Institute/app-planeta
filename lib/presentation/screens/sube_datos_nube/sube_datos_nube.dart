@@ -1,6 +1,7 @@
-import 'package:app_planeta/infrastructure/local_db/dao/datos_cliente_dao.dart';
 import 'package:app_planeta/infrastructure/local_db/dao/datos_mcabfa_dao.dart';
 import 'package:app_planeta/infrastructure/local_db/dao/datos_mlinfa_dao.dart';
+import 'package:app_planeta/infrastructure/local_db/dao/index.dart';
+import 'package:app_planeta/presentation/components/drawer_component.dart';
 import 'package:app_planeta/providers/connectivity_provider.dart';
 import 'package:app_planeta/services/upload_data_to_cloud.dart';
 import 'package:flutter/material.dart';
@@ -15,10 +16,13 @@ class SubeDatosNube extends StatefulWidget {
 
 class _SubeDatosNubeState extends State<SubeDatosNube>
     with SingleTickerProviderStateMixin {
+  final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
+
   // Datos simulados para las bases de datos
   int mclienteCount = 0;
   int mlinfaCount = 0;
   int mcabfaCount = 0;
+  int productosCount = 0;
   bool isLoading = false;
   bool isRefreshing = false;
 
@@ -41,11 +45,15 @@ class _SubeDatosNubeState extends State<SubeDatosNube>
     final countMcafba = await DatosMcabfaDao().getCountMcabfa();
     final countMlinfa = await DatosMlinfaDao().getCountMlinfa();
     final countMcliente = await DatosClienteDao().getCountClientes();
-    // final data = await DatosMcabfaDao().getAllMcabfa();
+    final countProducto = await ProductsDao().getCountProductosNoNube();
+
+    print(countMlinfa);
+
     setState(() {
       mclienteCount = countMcliente;
       mlinfaCount = countMlinfa;
       mcabfaCount = countMcafba;
+      productosCount = countProducto;
       isRefreshing = false;
     });
   }
@@ -95,12 +103,15 @@ class _SubeDatosNubeState extends State<SubeDatosNube>
     // consultamos mcabfa, mlinfa y mclient
     final dataMcabfa = await DatosMcabfaDao().getAllMcabfa();
     final dataMlinfa = await DatosMlinfaDao().getAllMlinfa();
-    final dataClient = await DatosClienteDao().getClientes();
+    final dataClient =
+        await DatosClienteDao().getClientesPendientesDeSincronizar();
+    final dataProducts = await ProductsDao().getProductsNotSynced();
 
     try {
       if (dataMcabfa.isEmpty && dataMlinfa.isEmpty && dataClient.isEmpty) {
         setState(() {
-          isLoading = false;
+          isLoading =
+              false; // Detener el loading si no hay datos para sincronizar
         });
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -127,13 +138,47 @@ class _SubeDatosNubeState extends State<SubeDatosNube>
       } else {
         final uploader = UploadDataToCloud();
 
+        setState(() {
+          isLoading = true; // Mostrar el loading mientras se suben los datos
+        });
+
         await uploader
             .uploadAllData(
               mcabfa: dataMcabfa.map((e) => e.toJson()).toList(),
               mlinfa: dataMlinfa.map((e) => e.toJson()).toList(),
-              mclient: dataClient.map((e) => e.toJson()).toList(),
+              mclient:
+                  dataClient.map((e) {
+                    // Creamos un Map a partir del objeto y eliminamos el campo 'cl_nube'
+                    final clienteMap = Map<String, dynamic>.from(e);
+                    clienteMap.remove('cl_nube');
+                    return clienteMap;
+                  }).toList(),
+              products: dataProducts.map((e) => e.toJson()).toList(),
             )
             .then((_) async {
+              setState(() {
+                isLoading =
+                    false; // Detener el loading después de que se complete la inserción
+              });
+
+              // Actualizar las tablas con los valores de 'mnube' y 'cl_nube'
+              for (var item in dataMcabfa) {
+                await DatosMcabfaDao().updateMnube(item.mcnufa);
+              }
+              for (var item in dataMlinfa) {
+                await DatosMlinfaDao().updateMnube(item.mlnufc);
+              }
+              for (var item in dataClient) {
+                await DatosClienteDao().updateClienteNube(item['clcecl']);
+              }
+              for (var item in dataProducts) {
+                await ProductsDao().updateProducto(
+                  item.id,
+                ); // Llamamos al método de actualización para productos
+              }
+
+              obtenerDatos();
+
               // Mostrar mensaje de éxito
               if (!mounted) return;
               ScaffoldMessenger.of(context).showSnackBar(
@@ -142,14 +187,17 @@ class _SubeDatosNubeState extends State<SubeDatosNube>
                     children: const [
                       Icon(Icons.check_circle, color: Colors.white),
                       SizedBox(width: 12),
-                      Text(
-                        'Datos sincronizados exitosamente',
-                        style: TextStyle(fontSize: 16),
+                      Expanded(
+                        child: Text(
+                          'Datos sincronizados exitosamente',
+                          style: TextStyle(fontSize: 16),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ],
                   ),
-                  backgroundColor: Colors.green.shade600,
-                  duration: const Duration(seconds: 3),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 3),
                   behavior: SnackBarBehavior.floating,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -157,13 +205,43 @@ class _SubeDatosNubeState extends State<SubeDatosNube>
                 ),
               );
 
-              return;
+              // Esperar unos segundos para que el usuario vea el mensaje antes de continuar
+              await Future.delayed(const Duration(seconds: 3));
+
+              // Aquí no navegamos a otra pantalla, solo mostramos el mensaje
+            })
+            .catchError((error) {
+              // Si ocurre un error al enviar los datos
+              setState(() {
+                isLoading = false; // Detener el loading si ocurre un error
+              });
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: const [
+                      Icon(Icons.error, color: Colors.white),
+                      SizedBox(width: 12),
+                      Text(
+                        'Error al sincronizar los datos',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: Colors.red.shade600,
+                  duration: const Duration(seconds: 3),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              );
             });
       }
     } catch (e) {
-      // Manejo de errores
+      // Manejo de errores generales
       setState(() {
-        isLoading = false;
+        isLoading = false; // Detener el loading si ocurre un error
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -221,12 +299,19 @@ class _SubeDatosNubeState extends State<SubeDatosNube>
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
+      key: scaffoldKey,
       appBar: AppBar(
         title: const Text(
           'Subir Datos a la Nube',
           style: TextStyle(fontWeight: FontWeight.w500),
         ),
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.menu),
+          onPressed: () {
+            scaffoldKey.currentState?.openDrawer();
+          },
+        ),
         centerTitle: true,
         actions: [
           IconButton(
@@ -246,6 +331,7 @@ class _SubeDatosNubeState extends State<SubeDatosNube>
           ),
         ],
       ),
+      drawer: DrawerComponent(),
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
@@ -306,21 +392,28 @@ class _SubeDatosNubeState extends State<SubeDatosNube>
     return ListView(
       children: [
         _buildDataCounter('mcliente', mclienteCount, Icons.people, Colors.blue),
-        const SizedBox(height: 10),
+        const SizedBox(height: 2),
         _buildDataCounter(
           'mcabfa',
           mcabfaCount,
           Icons.assessment,
           Colors.orange,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 2),
         _buildDataCounter(
           'mlinfa',
           mlinfaCount,
           Icons.inventory_2,
           Colors.green,
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 2),
+        _buildDataCounter(
+          'Productos',
+          productosCount,
+          Icons.inventory,
+          Colors.blueGrey,
+        ),
+        const SizedBox(height: 2),
         Card(
           elevation: 0,
           color:
