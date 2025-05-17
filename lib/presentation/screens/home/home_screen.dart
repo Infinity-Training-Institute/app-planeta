@@ -24,17 +24,23 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Obtener fecha actual en formato YYYY-MM-DD
-      String fechaHoy = DateFormat('yyyy-MM-dd').format(DateTime.now());
-
-      // Verificar si ya hay una actualización con la fecha de hoy
-      UpdateModel? existingUpdate = await _updateDao.getInfoByDate(fechaHoy);
-
-      if (existingUpdate == null) {
-        _syncData(context);
-      }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _verificarYActualizar();
     });
+  }
+
+  Future<void> _verificarYActualizar() async {
+    String fechaHoy = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    UpdateModel? existingUpdate = await _updateDao.getInfoByDate(fechaHoy);
+
+    if (!mounted) {
+      return; // <- Evita el uso de context si el widget fue desmontado
+    }
+
+    if (existingUpdate == null) {
+      _syncData(context);
+    }
   }
 
   void _syncData(BuildContext context) async {
@@ -102,9 +108,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return InvoiceComponent(
-      title: "Facturación Normal",
-      body: InvoceDetails(onSync: () => _syncData(context), typeFactura: "1"),
+    return WillPopScope(
+      onWillPop: () async {
+        return false; // Bloquea la navegación atrás
+      },
+      child: InvoiceComponent(
+        title: "Facturación Normal",
+        body: InvoceDetails(onSync: () => _syncData(context), typeFactura: "1"),
+      ),
     );
   }
 }

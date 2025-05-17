@@ -542,7 +542,7 @@ class InvoiceService with ChangeNotifier {
           mlcant: int.parse(products[i].quantity),
           mlesta: tipoLibro,
           mlestao: obsLinfa,
-          mlfefa: DateTime.now().millisecondsSinceEpoch,
+          mlfefa: int.parse(DateFormat('yyyyMMdd').format(DateTime.now())),
           mlestf: '',
           mlusua: users.nickUsuario,
           mlnufi: users.facturaAlternaUsuario,
@@ -561,6 +561,8 @@ class InvoiceService with ChangeNotifier {
 
     //actualizamos la factura actual de la caja
     await DatosCajaDao().updateFacturaActual(caja?.nickUsuario as String);
+
+    // TODO: actualizar la factura actual en la web
 
     return pdf;
   }

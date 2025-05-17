@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:app_planeta/infrastructure/local_db/dao/index.dart';
-import 'package:app_planeta/infrastructure/local_db/models/index.dart';
 import 'package:app_planeta/presentation/components/ean_scanner_component.dart';
 import 'package:app_planeta/presentation/components/modal_component.dart';
 import 'package:app_planeta/providers/user_provider.dart';

@@ -1,4 +1,5 @@
 import 'package:app_planeta/infrastructure/adapters/dio_adapter.dart';
+import 'package:app_planeta/services/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import '../providers/connectivity_provider.dart';
 import 'package:provider/provider.dart';
@@ -22,10 +23,11 @@ class SyncronizedData with ChangeNotifier {
   final TextFacturaDao _textFacturaDao = TextFacturaDao();
   final DatosCajaDao _cajaDao = DatosCajaDao();
   final DatosEmpresaDao _datosEmpresaDao = DatosEmpresaDao();
-  final DatosClienteDao _datosClienteDao = DatosClienteDao();
   final PromocionesDao _promocionesDao = PromocionesDao();
   final PromocionHoraDao _promocionHoraDao = PromocionHoraDao();
   final PromocionCantidadDao _promocionCantidadDao = PromocionCantidadDao();
+  final SharedPreferencesService _prefsService = SharedPreferencesService();
+  var opcionesDescarga = {};
 
   bool get isLoading => _isLoading;
   String get message => _message;
@@ -56,6 +58,7 @@ class SyncronizedData with ChangeNotifier {
   }
 
   Future<void> getDataToCloud(BuildContext context) async {
+    await _prefsService.init();
     _setLoading(true);
     _message = "";
 
@@ -88,43 +91,61 @@ class SyncronizedData with ChangeNotifier {
                 ? jsonDecode(responseData.data)
                 : responseData.data;
 
+        final keys = [
+          'productos',
+          'productosEspeciales',
+          'productosPaquetes',
+          'textoFactura',
+          'datosCaja',
+          'datosEmpresa',
+          'promociones',
+          'promocionHora',
+          'promocionCantidad',
+        ];
+
+        opcionesDescarga = _prefsService.getMultipleBools(keys);
+
+        // Imprime todas las claves y valores
+        opcionesDescarga.forEach((key, value) {
+          print('Pref $key = $value');
+        });
+
+        // Verificar si todas las preferencias están en false
+        bool todasPreferenciasFalse = true;
+        opcionesDescarga.forEach((key, value) {
+          if (value == true) {
+            todasPreferenciasFalse = false;
+          }
+        });
+
+        if (todasPreferenciasFalse) {
+          _message = "Ninguna preferencia seleccionada.";
+          return; // Salir de la función temprano
+        }
+
         List<dynamic> productList = data['productos'];
         List<dynamic> especiaList = data['productos_especiales'];
         List<dynamic> paqueteList = data['paquetes'];
         List<dynamic> textoFacturaList = data['texto_factura'];
         List<dynamic> datosCajaList = data['datos_caja'];
         List<dynamic> datosEmpresaList = data['datos_empresa'];
-        List<dynamic> datosClienteList = data['datos_cliente'];
         List<dynamic> datosPromocionList = data['datos_promociones'];
         List<dynamic> datosPromocionHorasList = data['datos_promocion_horas'];
         List<dynamic> datosPromocionCantidadList =
             data['datos_promocion_cantidad'];
 
-        // verificamos si la lista de promociones esta vacia
-        await clearIfEmpty(
-          serverList: datosPromocionList,
-          localCount: _promocionesDao.countPromociones,
-          deleteAll: _promocionesDao.deleteAll,
-        );
+        // Manejamos promociones - solo si está activado
+        if (opcionesDescarga['promociones'] == true) {
+          // verificamos si la lista de promociones esta vacia
+          await clearIfEmpty(
+            serverList: datosPromocionList,
+            localCount: _promocionesDao.countPromociones,
+            deleteAll: _promocionesDao.deleteAll,
+          );
 
-        await clearIfEmpty(
-          serverList: datosPromocionHorasList,
-          localCount: _promocionHoraDao.countPromocionHoras,
-          deleteAll: _promocionHoraDao.deleteAll,
-        );
+          await _promocionesDao.deleteAll();
 
-        await clearIfEmpty(
-          serverList: datosPromocionCantidadList,
-          localCount: _promocionCantidadDao.countPromocionCantidad,
-          deleteAll: _promocionCantidadDao.deleteAll,
-        );
-
-        // eliminamos los datos de la tabla de promociones
-        await _promocionesDao.deleteAll();
-        await _promocionHoraDao.deleteAll();
-        await _promocionCantidadDao.deleteAll();
-
-        await Future.wait([
+          //insertamos si esta activa
           insertData<PromocionesModel>(
             datosPromocionList,
             _promocionesDao.insertPromocion,
@@ -138,7 +159,18 @@ class SyncronizedData with ChangeNotifier {
               usuario: item['Usuario'],
               tipoPromocion: item['Tipo_Promocion'],
             ),
-          ),
+          );
+        }
+
+        if (opcionesDescarga['promocionHora'] == true) {
+          await clearIfEmpty(
+            serverList: datosPromocionHorasList,
+            localCount: _promocionHoraDao.countPromocionHoras,
+            deleteAll: _promocionHoraDao.deleteAll,
+          );
+
+          await _promocionHoraDao.deleteAll();
+
           insertData<PromocionHorasModel>(
             datosPromocionHorasList,
             _promocionHoraDao.inserPromocionHora,
@@ -155,7 +187,18 @@ class SyncronizedData with ChangeNotifier {
                   )?.toString(),
               usuario: item['Usuario'],
             ),
-          ),
+          );
+        }
+
+        if (opcionesDescarga['promocionCantidad'] == true) {
+          await clearIfEmpty(
+            serverList: datosPromocionCantidadList,
+            localCount: _promocionCantidadDao.countPromocionCantidad,
+            deleteAll: _promocionCantidadDao.deleteAll,
+          );
+
+          await _promocionCantidadDao.deleteAll();
+
           insertData<PromocionCantidadModel>(
             datosPromocionCantidadList,
             _promocionCantidadDao.insertPromocionCantidad,
@@ -170,7 +213,10 @@ class SyncronizedData with ChangeNotifier {
               obsequio: item['Obsequio'],
               usuario: item['Usuario'],
             ),
-          ),
+          );
+        }
+
+        if (opcionesDescarga['textoFactura'] == true) {
           insertData<TextFacturaModel>(
             textoFacturaList,
             _textFacturaDao.insertText,
@@ -178,7 +224,10 @@ class SyncronizedData with ChangeNotifier {
               id: int.parse(item['id']),
               descripcion: item['descripcion'],
             ),
-          ),
+          );
+        }
+
+        if (opcionesDescarga['datosCaja'] == true) {
           insertData<DatosCajaModel>(
             datosCajaList,
             _cajaDao.insertCaja,
@@ -195,7 +244,10 @@ class SyncronizedData with ChangeNotifier {
               nickUsuario: item['Nick_Usuario'],
               claveTecnica: item['Clave_Tecnica'],
             ),
-          ),
+          );
+        }
+
+        if (opcionesDescarga['datosEmpresa'] == true) {
           insertData<DatosEmpresaModel>(
             datosEmpresaList,
             _datosEmpresaDao.insertEmpresa,
@@ -214,25 +266,10 @@ class SyncronizedData with ChangeNotifier {
                       ? int.tryParse(item['Logo'].toString()) ?? 0
                       : 0,
             ),
-          ),
-          insertData<DatosClienteModel>(
-            datosClienteList,
-            _datosClienteDao.insertCliente,
-            (item) => DatosClienteModel(
-              clcecl: item['clcecl'],
-              clnmcl: item['clnmcl'],
-              clpacl: item['clpacl'],
-              clsacl: item['clsacl'],
-              clmail: item['clmail'],
-              cldire: item['cldire'],
-              clciud: item['clciud'],
-              cltele: item['cltele'],
-              clusua: item['clusua'],
-              cltipo: item['cltipo'],
-              clfecha: item['clfecha'],
-              cl_nube: '1', // ← Aquí corregido
-            ),
-          ),
+          );
+        }
+
+        if (opcionesDescarga['productos'] == true) {
           insertData<ProductsModel>(
             productList,
             _productsDao.insertProduct,
@@ -249,7 +286,10 @@ class SyncronizedData with ChangeNotifier {
               familia: int.parse(item['Familia']),
               mnube: 1,
             ),
-          ),
+          );
+        }
+
+        if (opcionesDescarga['productosEspeciales'] == true) {
           insertData<ProductsEspecialsModel>(
             especiaList,
             _productsEspecialsDao.insertProductsEspecials,
@@ -263,7 +303,10 @@ class SyncronizedData with ChangeNotifier {
               acumulaObsequio: item['Acumula_Obsequio'],
               usuario: item['Usuario'],
             ),
-          ),
+          );
+        }
+
+        if (opcionesDescarga['productosPaquetes'] == true) {
           insertData<ProductsPaquetesModel>(
             paqueteList,
             _productsPaquetesDao.insertProductPaquete,
@@ -276,8 +319,147 @@ class SyncronizedData with ChangeNotifier {
               precio: item['Precio'],
               usuario: item['Usuario'],
             ),
-          ),
-        ]);
+          );
+        }
+
+        // eliminamos los datos de la tabla de promociones
+
+        // await Future.wait([
+        //   insertData<PromocionesModel>(
+        //     datosPromocionList,
+        //     _promocionesDao.insertPromocion,
+        //     (item) => PromocionesModel(
+        //       codPromocion: int.tryParse(item['Cod_Promocion'].toString()),
+        //       fechaPromocion: item['Fecha_Promocion'],
+        //       horaDesde: item['Hora_Desde'],
+        //       minutoDesde: item['Minuto_Desde'],
+        //       horaHasta: item['Hora_Hasta'],
+        //       minutoHasta: item['Minuto_Hasta'],
+        //       usuario: item['Usuario'],
+        //       tipoPromocion: item['Tipo_Promocion'],
+        //     ),
+        //   ),
+        //   insertData<PromocionHorasModel>(
+        //     datosPromocionHorasList,
+        //     _promocionHoraDao.inserPromocionHora,
+        //     (item) => PromocionHorasModel(
+        //       codPromocion: int.tryParse(item['Cod_Promocion'].toString()),
+        //       fechaPromocion: item['Fecha_Promocion'],
+        //       horaDesde: item['Hora_Desde'],
+        //       minutoDesde: item['Minuto_Desde'],
+        //       horaHasta: item['Hora_Hasta'],
+        //       minutoHasta: item['Minuto_Hasta'],
+        //       descuentoPromocion:
+        //           int.tryParse(
+        //             item['Descuento_Promocion'].toString(),
+        //           )?.toString(),
+        //       usuario: item['Usuario'],
+        //     ),
+        //   ),
+        //   insertData<PromocionCantidadModel>(
+        //     datosPromocionCantidadList,
+        //     _promocionCantidadDao.insertPromocionCantidad,
+        //     (item) => PromocionCantidadModel(
+        //       codPromocion: int.tryParse(item['Cod_Promocion'].toString()),
+        //       productosDesde: int.tryParse(item['Productos_Desde'].toString()),
+        //       productosHasta: int.tryParse(item['Productos_Hasta'].toString()),
+        //       porcentajeDescuento:
+        //           int.tryParse(
+        //             item['Porcentaje_Descuento'].toString(),
+        //           )?.toString(),
+        //       obsequio: item['Obsequio'],
+        //       usuario: item['Usuario'],
+        //     ),
+        //   ),
+        //   insertData<TextFacturaModel>(
+        //     textoFacturaList,
+        //     _textFacturaDao.insertText,
+        //     (item) => TextFacturaModel(
+        //       id: int.parse(item['id']),
+        //       descripcion: item['descripcion'],
+        //     ),
+        //   ),
+        //   insertData<DatosCajaModel>(
+        //     datosCajaList,
+        //     _cajaDao.insertCaja,
+        //     (item) => DatosCajaModel(
+        //       codCaja:
+        //           item['Cod_Caja'] != null
+        //               ? int.tryParse(item['Cod_Caja'].toString())
+        //               : null,
+        //       stand: item['Stand'],
+        //       numeroCaja: item['Numero_Caja'],
+        //       facturaInicio: item['Factura_Inicio'],
+        //       numeroResolucion: item['Numero_Resolucion'],
+        //       facturaActual: item['Factura_Actual'],
+        //       nickUsuario: item['Nick_Usuario'],
+        //       claveTecnica: item['Clave_Tecnica'],
+        //     ),
+        //   ),
+        //   insertData<DatosEmpresaModel>(
+        //     datosEmpresaList,
+        //     _datosEmpresaDao.insertEmpresa,
+        //     (item) => DatosEmpresaModel(
+        //       id:
+        //           item['Id'] != null
+        //               ? int.tryParse(item['Id'].toString())
+        //               : null,
+        //       nombreEmpresa: item['Nombre_Empresa'],
+        //       nit: item['Nit'],
+        //       direccion: item['Direccion'],
+        //       telefono: item['Telefono'],
+        //       email: item['Email'],
+        //       logo:
+        //           item['Logo'] != null
+        //               ? int.tryParse(item['Logo'].toString()) ?? 0
+        //               : 0,
+        //     ),
+        //   ),
+        //   insertData<ProductsModel>(
+        //     productList,
+        //     _productsDao.insertProduct,
+        //     (item) => ProductsModel(
+        //       id: int.parse(item['id']),
+        //       ISBN: item['ISBN'],
+        //       EAN: item['EAN'],
+        //       referencia: item['Referencia'],
+        //       descReferencia: item['Desc_Referencia'],
+        //       precio: int.parse(item['Precio']),
+        //       cantidad: int.parse(item['Cantidad']),
+        //       autor: item['Autor'],
+        //       selloEditorial: item['Sello_Editorial'],
+        //       familia: int.parse(item['Familia']),
+        //       mnube: 1,
+        //     ),
+        //   ),
+        //   insertData<ProductsEspecialsModel>(
+        //     especiaList,
+        //     _productsEspecialsDao.insertProductsEspecials,
+        //     (item) => ProductsEspecialsModel(
+        //       id: int.parse(item['id']),
+        //       referencia: item['Referencia'],
+        //       descReferencia: item['Desc_Referencia'],
+        //       porcentajeDescuento: int.parse(item['Porcentaje_Descuento']),
+        //       precio: int.parse(item['Precio']),
+        //       acumula: item['Acumula'],
+        //       acumulaObsequio: item['Acumula_Obsequio'],
+        //       usuario: item['Usuario'],
+        //     ),
+        //   ),
+        //   insertData<ProductsPaquetesModel>(
+        //     paqueteList,
+        //     _productsPaquetesDao.insertProductPaquete,
+        //     (item) => ProductsPaquetesModel(
+        //       id: int.parse(item['id']),
+        //       codigoPaquete: int.parse(item['Codigo_Paquete']),
+        //       codigoEan: item['Codigo_Ean'],
+        //       referencia: item['Referencia'],
+        //       descReferencia: item['Descripcion_Referencia'],
+        //       precio: item['Precio'],
+        //       usuario: item['Usuario'],
+        //     ),
+        //   ),
+        // ]);
 
         final update = UpdateModel(fechaActualizacion: fechaHoy);
         await _updateDao.insertUpdate(update);

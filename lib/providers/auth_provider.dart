@@ -80,6 +80,8 @@ class AuthProvider with ChangeNotifier {
 
         String decodedPwd = utf8.decode(base64.decode(userData['Pwd_Usuario']));
 
+        print(decodedPwd);
+
         // Crear instancia de UserModel con los datos extraídos
         final nuevoUsuario = UserModel(
           codUsuario: int.parse(userData['Cod_Usuario']), // Convertir a int
@@ -100,6 +102,7 @@ class AuthProvider with ChangeNotifier {
         await userDao.insertUser(nuevoUsuario);
       }
     } catch (e) {
+      print(e);
       _isAuthenticated = false;
       _userIsNotFound = false;
       _credentialsAreInvalid = false;
