@@ -1,5 +1,6 @@
 import 'package:app_planeta/presentation/components/invoce_details.dart';
 import 'package:app_planeta/presentation/components/invoice_component.dart';
+import 'package:app_planeta/providers/type_factura_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:app_planeta/providers/connectivity_provider.dart';
 import 'package:app_planeta/utils/alert_utils.dart';
@@ -20,7 +21,16 @@ class _FacturacionEspecial extends State<FacturacionEspecial> {
   @override
   void initState() {
     super.initState();
-    _showDiscountDialog();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showDiscountDialog();
+
+      // guardamos en un provider el tipo de factura
+      Provider.of<TypeFacturaProvider>(
+        context,
+        listen: false,
+      ).setTipoFactura(2); // 1: Factura normal, 2: Factura especial
+    });
   }
 
   void _showDiscountDialog() {

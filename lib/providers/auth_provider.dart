@@ -1,4 +1,5 @@
 import 'package:app_planeta/infrastructure/adapters/dio_adapter.dart';
+import 'package:app_planeta/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:dio/dio.dart';
 import '../infrastructure/local_db/models/user_model.dart';
@@ -31,6 +32,8 @@ class AuthProvider with ChangeNotifier {
   ) async {
     _setLoading(true);
     _message = ""; // Reinicia el mensaje antes de la petición
+
+    final userProvider = Provider.of<StandProvider>(context, listen: false);
 
     // verificamos la conexión a internet
     final connectivityProvider = Provider.of<ConnectivityProvider>(
@@ -80,29 +83,47 @@ class AuthProvider with ChangeNotifier {
 
         String decodedPwd = utf8.decode(base64.decode(userData['Pwd_Usuario']));
 
-        print(decodedPwd);
-
-        // Crear instancia de UserModel con los datos extraídos
-        final nuevoUsuario = UserModel(
-          codUsuario: int.parse(userData['Cod_Usuario']), // Convertir a int
-          nombreUsuario: userData['Nombre_Usuario'],
-          apellidoUsuario: userData['Apellido_Usuario'],
-          nickUsuario: userData['Nick_Usuario'],
-          pwdUsuario: decodedPwd,
-          tipoUsuario: int.parse(userData['Tipo_Usuario']),
-          estadoUsuario: int.parse(userData['Estado_Usuario']),
-          serieImpUsuario: userData['Serie_Imp_Usuario'] ?? '',
-          facturaAlternaUsuario: int.parse(userData['Factura_Alterna_Usuario']),
-          cajaUsuario: userData['Caja_Usuario'],
-          stand: userData['Stand'],
-        );
-
-        // Guardar el usuario en la base de datos local
+        // Verificar si el campo Factura_Alterna_Usuario es mayor al actual en la db
         final userDao = UserDao();
-        await userDao.insertUser(nuevoUsuario);
+        final existingUser = await userDao.getUserByNickName(email);
+
+        if (existingUser != null) {
+          final existingFacturaAlterna = await userDao.getFacturaAlternaUsuario(
+            email,
+          );
+          final newFacturaAlterna = int.parse(
+            userData['Factura_Alterna_Usuario'],
+          );
+
+          if (existingFacturaAlterna != null &&
+              newFacturaAlterna > existingFacturaAlterna) {
+            await userDao.updateFacturaAlternaUsuario(email, newFacturaAlterna);
+          }
+        } else {
+          // Si el usuario no existe, lo insertamos
+          await userDao.insertUser(
+            UserModel(
+              codUsuario: int.parse(userData['Cod_Usuario']),
+              nombreUsuario: userData['Nombre_Usuario'],
+              apellidoUsuario: userData['Apellido_Usuario'],
+              nickUsuario: userData['Nick_Usuario'],
+              pwdUsuario: decodedPwd,
+              tipoUsuario: int.parse(userData['Tipo_Usuario']),
+              estadoUsuario: int.parse(userData['Estado_Usuario']),
+              serieImpUsuario: userData['Serie_Imp_Usuario'] ?? '',
+              facturaAlternaUsuario: int.parse(
+                userData['Factura_Alterna_Usuario'],
+              ),
+              cajaUsuario: userData['Caja_Usuario'],
+              stand: userData['Stand'],
+            ),
+          );
+        }
+
+        // guardamos el stand
+        userProvider.setStand(userData['Stand']);
       }
     } catch (e) {
-      print(e);
       _isAuthenticated = false;
       _userIsNotFound = false;
       _credentialsAreInvalid = false;
@@ -138,6 +159,9 @@ class AuthProvider with ChangeNotifier {
 
   void logout() {
     _isAuthenticated = false;
+    _userIsNotFound = false;
+    _credentialsAreInvalid = false;
+    _isLoading = false;
     notifyListeners();
   }
 }

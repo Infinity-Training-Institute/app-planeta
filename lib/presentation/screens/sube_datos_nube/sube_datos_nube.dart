@@ -104,8 +104,8 @@ class _SubeDatosNubeState extends State<SubeDatosNube>
     }
 
     // consultamos mcabfa, mlinfa y mclient
-    final dataMcabfa = await DatosMcabfaDao().getAllMcabfa();
-    final dataMlinfa = await DatosMlinfaDao().getAllMlinfa();
+    final dataMcabfa = await DatosMcabfaDao().getMcabfaByMnube0();
+    final dataMlinfa = await DatosMlinfaDao().getMlinfaByMnube();
     final dataClient =
         await DatosClienteDao().getClientesPendientesDeSincronizar();
     final dataProducts = await ProductsDao().getProductsNotSynced();
@@ -139,109 +139,107 @@ class _SubeDatosNubeState extends State<SubeDatosNube>
         );
         return;
       } else {
-        // final uploader = UploadDataToCloud();
+        final uploader = UploadDataToCloud();
 
-        // setState(() {
-        //   isLoading = true; // Mostrar el loading mientras se suben los datos
-        // });
+        setState(() {
+          isLoading = true; // Mostrar el loading mientras se suben los datos
+        });
 
-        // await uploader
-        //     .uploadAllData(
-        //       mcabfa: dataMcabfa.map((e) => e.toJson()).toList(),
-        //       mlinfa: dataMlinfa.map((e) => e.toJson()).toList(),
-        //       mclient:
-        //           dataClient.map((e) {
-        //             // Creamos un Map a partir del objeto y eliminamos el campo 'cl_nube'
-        //             final clienteMap = Map<String, dynamic>.from(e);
-        //             clienteMap.remove('cl_nube');
-        //             return clienteMap;
-        //           }).toList(),
-        //       products: dataProducts.map((e) => e.toJson()).toList(),
-        //     )
-        //     .then((_) async {
-        //       setState(() {
-        //         isLoading =
-        //             false; // Detener el loading después de que se complete la inserción
-        //       });
+        await uploader
+            .uploadAllData(
+              mcabfa: dataMcabfa.map((e) => e.toJson()).toList(),
+              mlinfa: dataMlinfa.map((e) => e.toJson()).toList(),
+              mclient:
+                  dataClient.map((e) {
+                    // Creamos un Map a partir del objeto y eliminamos el campo 'cl_nube'
+                    final clienteMap = Map<String, dynamic>.from(e);
+                    clienteMap.remove('cl_nube');
+                    return clienteMap;
+                  }).toList(),
+              products: dataProducts.map((e) => e.toJson()).toList(),
+            )
+            .then((_) async {
+              setState(() {
+                isLoading =
+                    false; // Detener el loading después de que se complete la inserción
+              });
 
-        //       // Actualizar las tablas con los valores de 'mnube' y 'cl_nube'
-        //       for (var item in dataMcabfa) {
-        //         await DatosMcabfaDao().updateMnube(item.mcnufa);
-        //       }
-        //       for (var item in dataMlinfa) {
-        //         await DatosMlinfaDao().updateMnube(item.mlnufc);
-        //       }
-        //       for (var item in dataClient) {
-        //         await DatosClienteDao().updateClienteNube(item['clcecl']);
-        //       }
-        //       for (var item in dataProducts) {
-        //         await ProductsDao().updateProducto(
-        //           item.id,
-        //         ); // Llamamos al método de actualización para productos
-        //       }
+              // Actualizar las tablas con los valores de 'mnube' y 'cl_nube'
+              for (var item in dataMcabfa) {
+                await DatosMcabfaDao().updateMnube(item.mcnufa);
+              }
+              for (var item in dataMlinfa) {
+                await DatosMlinfaDao().updateMnube(item.mlnufc);
+              }
+              for (var item in dataClient) {
+                await DatosClienteDao().updateClienteNube(item['clcecl']);
+              }
+              for (var item in dataProducts) {
+                await ProductsDao().updateProducto(
+                  item.id,
+                ); // Llamamos al método de actualización para productos
+              }
 
-        //       obtenerDatos();
+              obtenerDatos();
 
-        //       // Mostrar mensaje de éxito
-        //       if (!mounted) return;
-        //       ScaffoldMessenger.of(context).showSnackBar(
-        //         SnackBar(
-        //           content: Row(
-        //             children: const [
-        //               Icon(Icons.check_circle, color: Colors.white),
-        //               SizedBox(width: 12),
-        //               Expanded(
-        //                 child: Text(
-        //                   'Datos sincronizados exitosamente',
-        //                   style: TextStyle(fontSize: 16),
-        //                   overflow: TextOverflow.ellipsis,
-        //                 ),
-        //               ),
-        //             ],
-        //           ),
-        //           backgroundColor: Colors.green,
-        //           duration: Duration(seconds: 3),
-        //           behavior: SnackBarBehavior.floating,
-        //           shape: RoundedRectangleBorder(
-        //             borderRadius: BorderRadius.circular(10),
-        //           ),
-        //         ),
-        //       );
+              // Mostrar mensaje de éxito
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: const [
+                      Icon(Icons.check_circle, color: Colors.white),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Datos sincronizados exitosamente',
+                          style: TextStyle(fontSize: 16),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: Colors.green,
+                  duration: Duration(seconds: 3),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              );
 
-        //       // Esperar unos segundos para que el usuario vea el mensaje antes de continuar
-        //       await Future.delayed(const Duration(seconds: 3));
+              // Esperar unos segundos para que el usuario vea el mensaje antes de continuar
+              await Future.delayed(const Duration(seconds: 3));
 
-        //       // Aquí no navegamos a otra pantalla, solo mostramos el mensaje
-        //     })
-        //     .catchError((error) {
-        //       // Si ocurre un error al enviar los datos
-        //       setState(() {
-        //         isLoading = false; // Detener el loading si ocurre un error
-        //       });
-        //       if (!mounted) return;
-        //       ScaffoldMessenger.of(context).showSnackBar(
-        //         SnackBar(
-        //           content: Row(
-        //             children: const [
-        //               Icon(Icons.error, color: Colors.white),
-        //               SizedBox(width: 12),
-        //               Text(
-        //                 'Error al sincronizar los datos',
-        //                 style: TextStyle(fontSize: 16),
-        //               ),
-        //             ],
-        //           ),
-        //           backgroundColor: Colors.red.shade600,
-        //           duration: const Duration(seconds: 3),
-        //           behavior: SnackBarBehavior.floating,
-        //           shape: RoundedRectangleBorder(
-        //             borderRadius: BorderRadius.circular(10),
-        //           ),
-        //         ),
-        //       );
-        //     });
-
-        print(dataMcabfa.map((e) => e.toJson()).toList());
+              // Aquí no navegamos a otra pantalla, solo mostramos el mensaje
+            })
+            .catchError((error) {
+              // Si ocurre un error al enviar los datos
+              setState(() {
+                isLoading = false; // Detener el loading si ocurre un error
+              });
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: const [
+                      Icon(Icons.error, color: Colors.white),
+                      SizedBox(width: 12),
+                      Text(
+                        'Error al sincronizar los datos',
+                        style: TextStyle(fontSize: 16),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: Colors.red.shade600,
+                  duration: const Duration(seconds: 3),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              );
+            });
       }
     } catch (e) {
       // Manejo de errores generales

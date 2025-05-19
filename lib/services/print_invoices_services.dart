@@ -7,6 +7,7 @@ import 'package:app_planeta/infrastructure/local_db/models/datos_cliente_model.d
 import 'package:app_planeta/infrastructure/local_db/models/mcabfa_model.dart';
 import 'package:app_planeta/infrastructure/local_db/models/mlinfa_model.dart';
 import 'package:app_planeta/presentation/components/invoce_details.dart';
+import 'package:app_planeta/providers/type_factura_provider.dart';
 import 'package:app_planeta/providers/user_provider.dart';
 import 'package:app_planeta/services/ref_libro_especial.dart';
 import 'package:app_planeta/utils/create_cufe.dart';
@@ -27,8 +28,16 @@ class InvoiceService with ChangeNotifier {
     String? tipoFacturacion,
     int diference,
   ) async {
+    // recuperamos el tipo de factura
+    final tipoFacturacion = Provider.of<TypeFacturaProvider>(
+      context,
+      listen: false,
+    );
+
+    print("typeFacturacion: ${tipoFacturacion.tipoFactura}");
+    print("tipo de facuta ${tipoFacturacion.tipoFactura == 1 ? 'N' : 'E'}");
+
     final pdf = pw.Document();
-    final String tipoFactura;
     final userProvider = Provider.of<UserProvider>(context, listen: false);
 
     // obtenemos los datos necesarios para la factura
@@ -114,12 +123,6 @@ class InvoiceService with ChangeNotifier {
       'CUFE': cufeData['cufe'] ?? '',
       'QRCode': cufeData['linkVerificacionQr'] ?? '',
     });
-
-    if (tipoFacturacion == '1') {
-      tipoFactura = "N";
-    } else {
-      tipoFactura = "E";
-    }
 
     pdf.addPage(
       pw.Page(
@@ -478,13 +481,13 @@ class InvoiceService with ChangeNotifier {
       McabfaModel(
         mcnufa: int.tryParse(caja?.facturaActual ?? '') ?? 0,
         mcnuca: (caja?.numeroCaja.toString() ?? '0'),
-        mccecl: int.tryParse(cliente?.clcecl ?? '0') ?? 0,
+        mccecl: int.tryParse(cliente?.clcecl ?? '222222222222') ?? 222222222222,
         mcfefa: int.parse(DateFormat('yyyyMMdd').format(DateTime.now())),
         mchora: DateFormat('hh:mm:ss').format(DateTime.now()),
         mcfopa: getPaymentAbbreviation(paymentValues),
         mcpode: mcpode,
         mcvade: mcvade.toInt(),
-        mctifa: tipoFactura,
+        mctifa: tipoFacturacion.tipoFactura == 1 ? 'N' : 'E',
         mcvabr: mcvabr.toInt(),
         mcvane: total,
         mcesta: "",
@@ -553,6 +556,8 @@ class InvoiceService with ChangeNotifier {
       );
     }
 
+    print(users);
+
     // actualizamos el numero de la factura alterna
     await UserDao().updateFacturaAlternaUsuario(
       users.nickUsuario,
@@ -561,8 +566,6 @@ class InvoiceService with ChangeNotifier {
 
     //actualizamos la factura actual de la caja
     await DatosCajaDao().updateFacturaActual(caja?.nickUsuario as String);
-
-    // TODO: actualizar la factura actual en la web
 
     return pdf;
   }

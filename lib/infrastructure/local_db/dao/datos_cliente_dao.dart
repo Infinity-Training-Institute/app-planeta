@@ -45,6 +45,33 @@ class DatosClienteDao {
     });
   }
 
+  // funcion para obtener los registros donde el mnube sea 0
+  Future<List<DatosClienteModel>> getClientesByMnube() async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'mclien',
+      where: 'cl_nube = ?',
+      whereArgs: [0],
+    );
+
+    return List.generate(maps.length, (i) {
+      return DatosClienteModel(
+        clcecl: maps[i]['clcecl'].toString(),
+        clnmcl: maps[i]['clnmcl'],
+        clpacl: maps[i]['clpacl'],
+        clsacl: maps[i]['clsacl'],
+        clmail: maps[i]['clmail'],
+        cldire: maps[i]['cldire'],
+        clciud: maps[i]['clciud'],
+        cltele: maps[i]['cltele'],
+        clusua: maps[i]['clusua'],
+        cl_nube: maps[i]['cl_nube'] ?? '', // Manejar el campo cl_nube
+        cltipo: maps[i]['cltipo'],
+        clfecha: maps[i]['clfecha'],
+      );
+    });
+  }
+
   // obtenemos el count de los clientes los cuales en el mnube esten en 0
   Future<int> getCountClientes() async {
     final db = await AppDatabase.database;

@@ -1,4 +1,5 @@
 import 'package:app_planeta/infrastructure/adapters/dio_adapter.dart';
+import 'package:app_planeta/providers/user_provider.dart';
 import 'package:app_planeta/services/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import '../providers/connectivity_provider.dart';
@@ -78,9 +79,13 @@ class SyncronizedData with ChangeNotifier {
       return;
     }
 
+    // consultamos el stand
+    final userProvider = Provider.of<StandProvider>(context, listen: false);
+  
+
     // url de descarga
-    const String url =
-        'https://prologics.co/app_planeta_pruebas/controlador/descarga_datos_nube.php';
+    final String url =
+    'https://prologics.co/app_planeta_pruebas/controlador/descarga_datos_nube.php?stand=${userProvider.stand}';
 
     try {
       final responseData = await dioAdapter.getRequest(url);
@@ -134,337 +139,261 @@ class SyncronizedData with ChangeNotifier {
         List<dynamic> datosPromocionCantidadList =
             data['datos_promocion_cantidad'];
 
-        // Manejamos promociones - solo si está activado
-        if (opcionesDescarga['promociones'] == true) {
-          // verificamos si la lista de promociones esta vacia
-          await clearIfEmpty(
-            serverList: datosPromocionList,
-            localCount: _promocionesDao.countPromociones,
-            deleteAll: _promocionesDao.deleteAll,
-          );
+        // Creamos un mapa para llevar registro de los contadores
+        Map<String, int> insertCounters = {};
 
-          await _promocionesDao.deleteAll();
+        await Future.wait([
+          // Manejamos promociones - solo si está activado
+          if (opcionesDescarga['promociones'] == true)
+            () async {
+              // verificamos si la lista de promociones esta vacia
+              await clearIfEmpty(
+                serverList: datosPromocionList,
+                localCount: _promocionesDao.countPromociones,
+                deleteAll: _promocionesDao.deleteAll,
+              );
 
-          //insertamos si esta activa
-          insertData<PromocionesModel>(
-            datosPromocionList,
-            _promocionesDao.insertPromocion,
-            (item) => PromocionesModel(
-              codPromocion: int.tryParse(item['Cod_Promocion'].toString()),
-              fechaPromocion: item['Fecha_Promocion'],
-              horaDesde: item['Hora_Desde'],
-              minutoDesde: item['Minuto_Desde'],
-              horaHasta: item['Hora_Hasta'],
-              minutoHasta: item['Minuto_Hasta'],
-              usuario: item['Usuario'],
-              tipoPromocion: item['Tipo_Promocion'],
-            ),
-          );
-        }
+              await _promocionesDao.deleteAll();
 
-        if (opcionesDescarga['promocionHora'] == true) {
-          await clearIfEmpty(
-            serverList: datosPromocionHorasList,
-            localCount: _promocionHoraDao.countPromocionHoras,
-            deleteAll: _promocionHoraDao.deleteAll,
-          );
+              // insertamos si esta activa
+              await insertData<PromocionesModel>(
+                datosPromocionList,
+                _promocionesDao.insertPromocion,
+                (item) => PromocionesModel(
+                  codPromocion: int.tryParse(item['Cod_Promocion'].toString()),
+                  fechaPromocion: item['Fecha_Promocion'],
+                  horaDesde: item['Hora_Desde'],
+                  minutoDesde: item['Minuto_Desde'],
+                  horaHasta: item['Hora_Hasta'],
+                  minutoHasta: item['Minuto_Hasta'],
+                  usuario: item['Usuario'],
+                  tipoPromocion: item['Tipo_Promocion'],
+                ),
+              );
 
-          await _promocionHoraDao.deleteAll();
+              // Almacenamos el conteo después de insertar
+              int countPromociones = datosPromocionList.length;
+              insertCounters['promociones'] = countPromociones;
+              return;
+            }(),
 
-          insertData<PromocionHorasModel>(
-            datosPromocionHorasList,
-            _promocionHoraDao.inserPromocionHora,
-            (item) => PromocionHorasModel(
-              codPromocion: int.tryParse(item['Cod_Promocion'].toString()),
-              fechaPromocion: item['Fecha_Promocion'],
-              horaDesde: item['Hora_Desde'],
-              minutoDesde: item['Minuto_Desde'],
-              horaHasta: item['Hora_Hasta'],
-              minutoHasta: item['Minuto_Hasta'],
-              descuentoPromocion:
-                  int.tryParse(
-                    item['Descuento_Promocion'].toString(),
-                  )?.toString(),
-              usuario: item['Usuario'],
-            ),
-          );
-        }
+          if (opcionesDescarga['promocionHora'] == true)
+            () async {
+              await clearIfEmpty(
+                serverList: datosPromocionHorasList,
+                localCount: _promocionHoraDao.countPromocionHoras,
+                deleteAll: _promocionHoraDao.deleteAll,
+              );
 
-        if (opcionesDescarga['promocionCantidad'] == true) {
-          await clearIfEmpty(
-            serverList: datosPromocionCantidadList,
-            localCount: _promocionCantidadDao.countPromocionCantidad,
-            deleteAll: _promocionCantidadDao.deleteAll,
-          );
+              await _promocionHoraDao.deleteAll();
 
-          await _promocionCantidadDao.deleteAll();
+              await insertData<PromocionHorasModel>(
+                datosPromocionHorasList,
+                _promocionHoraDao.inserPromocionHora,
+                (item) => PromocionHorasModel(
+                  codPromocion: int.tryParse(item['Cod_Promocion'].toString()),
+                  fechaPromocion: item['Fecha_Promocion'],
+                  horaDesde: item['Hora_Desde'],
+                  minutoDesde: item['Minuto_Desde'],
+                  horaHasta: item['Hora_Hasta'],
+                  minutoHasta: item['Minuto_Hasta'],
+                  descuentoPromocion:
+                      int.tryParse(
+                        item['Descuento_Promocion'].toString(),
+                      )?.toString(),
+                  usuario: item['Usuario'],
+                ),
+              );
 
-          insertData<PromocionCantidadModel>(
-            datosPromocionCantidadList,
-            _promocionCantidadDao.insertPromocionCantidad,
-            (item) => PromocionCantidadModel(
-              codPromocion: int.tryParse(item['Cod_Promocion'].toString()),
-              productosDesde: int.tryParse(item['Productos_Desde'].toString()),
-              productosHasta: int.tryParse(item['Productos_Hasta'].toString()),
-              porcentajeDescuento:
-                  int.tryParse(
-                    item['Porcentaje_Descuento'].toString(),
-                  )?.toString(),
-              obsequio: item['Obsequio'],
-              usuario: item['Usuario'],
-            ),
-          );
-        }
+              int countPromocionHoras = datosPromocionHorasList.length;
+              insertCounters['promocionHora'] = countPromocionHoras;
+              return;
+            }(),
 
-        if (opcionesDescarga['textoFactura'] == true) {
-          insertData<TextFacturaModel>(
-            textoFacturaList,
-            _textFacturaDao.insertText,
-            (item) => TextFacturaModel(
-              id: int.parse(item['id']),
-              descripcion: item['descripcion'],
-            ),
-          );
-        }
+          if (opcionesDescarga['promocionCantidad'] == true)
+            () async {
+              await clearIfEmpty(
+                serverList: datosPromocionCantidadList,
+                localCount: _promocionCantidadDao.countPromocionCantidad,
+                deleteAll: _promocionCantidadDao.deleteAll,
+              );
 
-        if (opcionesDescarga['datosCaja'] == true) {
-          insertData<DatosCajaModel>(
-            datosCajaList,
-            _cajaDao.insertCaja,
-            (item) => DatosCajaModel(
-              codCaja:
-                  item['Cod_Caja'] != null
-                      ? int.tryParse(item['Cod_Caja'].toString())
-                      : null,
-              stand: item['Stand'],
-              numeroCaja: item['Numero_Caja'],
-              facturaInicio: item['Factura_Inicio'],
-              numeroResolucion: item['Numero_Resolucion'],
-              facturaActual: item['Factura_Actual'],
-              nickUsuario: item['Nick_Usuario'],
-              claveTecnica: item['Clave_Tecnica'],
-            ),
-          );
-        }
+              await _promocionCantidadDao.deleteAll();
 
-        if (opcionesDescarga['datosEmpresa'] == true) {
-          insertData<DatosEmpresaModel>(
-            datosEmpresaList,
-            _datosEmpresaDao.insertEmpresa,
-            (item) => DatosEmpresaModel(
-              id:
-                  item['Id'] != null
-                      ? int.tryParse(item['Id'].toString())
-                      : null,
-              nombreEmpresa: item['Nombre_Empresa'],
-              nit: item['Nit'],
-              direccion: item['Direccion'],
-              telefono: item['Telefono'],
-              email: item['Email'],
-              logo:
-                  item['Logo'] != null
-                      ? int.tryParse(item['Logo'].toString()) ?? 0
-                      : 0,
-            ),
-          );
-        }
+              await insertData<PromocionCantidadModel>(
+                datosPromocionCantidadList,
+                _promocionCantidadDao.insertPromocionCantidad,
+                (item) => PromocionCantidadModel(
+                  codPromocion: int.tryParse(item['Cod_Promocion'].toString()),
+                  productosDesde: int.tryParse(
+                    item['Productos_Desde'].toString(),
+                  ),
+                  productosHasta: int.tryParse(
+                    item['Productos_Hasta'].toString(),
+                  ),
+                  porcentajeDescuento:
+                      int.tryParse(
+                        item['Porcentaje_Descuento'].toString(),
+                      )?.toString(),
+                  obsequio: item['Obsequio'],
+                  usuario: item['Usuario'],
+                ),
+              );
 
-        if (opcionesDescarga['productos'] == true) {
-          insertData<ProductsModel>(
-            productList,
-            _productsDao.insertProduct,
-            (item) => ProductsModel(
-              id: int.parse(item['id']),
-              ISBN: item['ISBN'],
-              EAN: item['EAN'],
-              referencia: item['Referencia'],
-              descReferencia: item['Desc_Referencia'],
-              precio: int.parse(item['Precio']),
-              cantidad: int.parse(item['Cantidad']),
-              autor: item['Autor'],
-              selloEditorial: item['Sello_Editorial'],
-              familia: int.parse(item['Familia']),
-              mnube: 1,
-            ),
-          );
-        }
+              int countPromocionCantidad = datosPromocionCantidadList.length;
+              insertCounters['promocionCantidad'] = countPromocionCantidad;
+              return;
+            }(),
 
-        if (opcionesDescarga['productosEspeciales'] == true) {
-          insertData<ProductsEspecialsModel>(
-            especiaList,
-            _productsEspecialsDao.insertProductsEspecials,
-            (item) => ProductsEspecialsModel(
-              id: int.parse(item['id']),
-              referencia: item['Referencia'],
-              descReferencia: item['Desc_Referencia'],
-              porcentajeDescuento: int.parse(item['Porcentaje_Descuento']),
-              precio: int.parse(item['Precio']),
-              acumula: item['Acumula'],
-              acumulaObsequio: item['Acumula_Obsequio'],
-              usuario: item['Usuario'],
-            ),
-          );
-        }
+          if (opcionesDescarga['textoFactura'] == true)
+            () async {
+              await insertData<TextFacturaModel>(
+                textoFacturaList,
+                _textFacturaDao.insertText,
+                (item) => TextFacturaModel(
+                  id: int.parse(item['id']),
+                  descripcion: item['descripcion'],
+                ),
+              );
 
-        if (opcionesDescarga['productosPaquetes'] == true) {
-          insertData<ProductsPaquetesModel>(
-            paqueteList,
-            _productsPaquetesDao.insertProductPaquete,
-            (item) => ProductsPaquetesModel(
-              id: int.parse(item['id']),
-              codigoPaquete: int.parse(item['Codigo_Paquete']),
-              codigoEan: item['Codigo_Ean'],
-              referencia: item['Referencia'],
-              descReferencia: item['Descripcion_Referencia'],
-              precio: item['Precio'],
-              usuario: item['Usuario'],
-            ),
-          );
-        }
+              int countTextoFactura = textoFacturaList.length;
+              insertCounters['textoFactura'] = countTextoFactura;
+              return;
+            }(),
 
-        // eliminamos los datos de la tabla de promociones
+          if (opcionesDescarga['datosCaja'] == true)
+            () async {
+              await insertData<DatosCajaModel>(
+                datosCajaList,
+                _cajaDao.insertCaja,
+                (item) => DatosCajaModel(
+                  codCaja:
+                      item['Cod_Caja'] != null
+                          ? int.tryParse(item['Cod_Caja'].toString())
+                          : null,
+                  stand: item['Stand'],
+                  numeroCaja: item['Numero_Caja'],
+                  facturaInicio: item['Factura_Inicio'],
+                  numeroResolucion: item['Numero_Resolucion'],
+                  facturaActual: item['Factura_Actual'],
+                  nickUsuario: item['Nick_Usuario'],
+                  claveTecnica: item['Clave_Tecnica'],
+                ),
+              );
 
-        // await Future.wait([
-        //   insertData<PromocionesModel>(
-        //     datosPromocionList,
-        //     _promocionesDao.insertPromocion,
-        //     (item) => PromocionesModel(
-        //       codPromocion: int.tryParse(item['Cod_Promocion'].toString()),
-        //       fechaPromocion: item['Fecha_Promocion'],
-        //       horaDesde: item['Hora_Desde'],
-        //       minutoDesde: item['Minuto_Desde'],
-        //       horaHasta: item['Hora_Hasta'],
-        //       minutoHasta: item['Minuto_Hasta'],
-        //       usuario: item['Usuario'],
-        //       tipoPromocion: item['Tipo_Promocion'],
-        //     ),
-        //   ),
-        //   insertData<PromocionHorasModel>(
-        //     datosPromocionHorasList,
-        //     _promocionHoraDao.inserPromocionHora,
-        //     (item) => PromocionHorasModel(
-        //       codPromocion: int.tryParse(item['Cod_Promocion'].toString()),
-        //       fechaPromocion: item['Fecha_Promocion'],
-        //       horaDesde: item['Hora_Desde'],
-        //       minutoDesde: item['Minuto_Desde'],
-        //       horaHasta: item['Hora_Hasta'],
-        //       minutoHasta: item['Minuto_Hasta'],
-        //       descuentoPromocion:
-        //           int.tryParse(
-        //             item['Descuento_Promocion'].toString(),
-        //           )?.toString(),
-        //       usuario: item['Usuario'],
-        //     ),
-        //   ),
-        //   insertData<PromocionCantidadModel>(
-        //     datosPromocionCantidadList,
-        //     _promocionCantidadDao.insertPromocionCantidad,
-        //     (item) => PromocionCantidadModel(
-        //       codPromocion: int.tryParse(item['Cod_Promocion'].toString()),
-        //       productosDesde: int.tryParse(item['Productos_Desde'].toString()),
-        //       productosHasta: int.tryParse(item['Productos_Hasta'].toString()),
-        //       porcentajeDescuento:
-        //           int.tryParse(
-        //             item['Porcentaje_Descuento'].toString(),
-        //           )?.toString(),
-        //       obsequio: item['Obsequio'],
-        //       usuario: item['Usuario'],
-        //     ),
-        //   ),
-        //   insertData<TextFacturaModel>(
-        //     textoFacturaList,
-        //     _textFacturaDao.insertText,
-        //     (item) => TextFacturaModel(
-        //       id: int.parse(item['id']),
-        //       descripcion: item['descripcion'],
-        //     ),
-        //   ),
-        //   insertData<DatosCajaModel>(
-        //     datosCajaList,
-        //     _cajaDao.insertCaja,
-        //     (item) => DatosCajaModel(
-        //       codCaja:
-        //           item['Cod_Caja'] != null
-        //               ? int.tryParse(item['Cod_Caja'].toString())
-        //               : null,
-        //       stand: item['Stand'],
-        //       numeroCaja: item['Numero_Caja'],
-        //       facturaInicio: item['Factura_Inicio'],
-        //       numeroResolucion: item['Numero_Resolucion'],
-        //       facturaActual: item['Factura_Actual'],
-        //       nickUsuario: item['Nick_Usuario'],
-        //       claveTecnica: item['Clave_Tecnica'],
-        //     ),
-        //   ),
-        //   insertData<DatosEmpresaModel>(
-        //     datosEmpresaList,
-        //     _datosEmpresaDao.insertEmpresa,
-        //     (item) => DatosEmpresaModel(
-        //       id:
-        //           item['Id'] != null
-        //               ? int.tryParse(item['Id'].toString())
-        //               : null,
-        //       nombreEmpresa: item['Nombre_Empresa'],
-        //       nit: item['Nit'],
-        //       direccion: item['Direccion'],
-        //       telefono: item['Telefono'],
-        //       email: item['Email'],
-        //       logo:
-        //           item['Logo'] != null
-        //               ? int.tryParse(item['Logo'].toString()) ?? 0
-        //               : 0,
-        //     ),
-        //   ),
-        //   insertData<ProductsModel>(
-        //     productList,
-        //     _productsDao.insertProduct,
-        //     (item) => ProductsModel(
-        //       id: int.parse(item['id']),
-        //       ISBN: item['ISBN'],
-        //       EAN: item['EAN'],
-        //       referencia: item['Referencia'],
-        //       descReferencia: item['Desc_Referencia'],
-        //       precio: int.parse(item['Precio']),
-        //       cantidad: int.parse(item['Cantidad']),
-        //       autor: item['Autor'],
-        //       selloEditorial: item['Sello_Editorial'],
-        //       familia: int.parse(item['Familia']),
-        //       mnube: 1,
-        //     ),
-        //   ),
-        //   insertData<ProductsEspecialsModel>(
-        //     especiaList,
-        //     _productsEspecialsDao.insertProductsEspecials,
-        //     (item) => ProductsEspecialsModel(
-        //       id: int.parse(item['id']),
-        //       referencia: item['Referencia'],
-        //       descReferencia: item['Desc_Referencia'],
-        //       porcentajeDescuento: int.parse(item['Porcentaje_Descuento']),
-        //       precio: int.parse(item['Precio']),
-        //       acumula: item['Acumula'],
-        //       acumulaObsequio: item['Acumula_Obsequio'],
-        //       usuario: item['Usuario'],
-        //     ),
-        //   ),
-        //   insertData<ProductsPaquetesModel>(
-        //     paqueteList,
-        //     _productsPaquetesDao.insertProductPaquete,
-        //     (item) => ProductsPaquetesModel(
-        //       id: int.parse(item['id']),
-        //       codigoPaquete: int.parse(item['Codigo_Paquete']),
-        //       codigoEan: item['Codigo_Ean'],
-        //       referencia: item['Referencia'],
-        //       descReferencia: item['Descripcion_Referencia'],
-        //       precio: item['Precio'],
-        //       usuario: item['Usuario'],
-        //     ),
-        //   ),
-        // ]);
+              int countDatosCaja = datosCajaList.length;
+              insertCounters['datosCaja'] = countDatosCaja;
+              return;
+            }(),
+
+          if (opcionesDescarga['datosEmpresa'] == true)
+            () async {
+              await insertData<DatosEmpresaModel>(
+                datosEmpresaList,
+                _datosEmpresaDao.insertEmpresa,
+                (item) => DatosEmpresaModel(
+                  id:
+                      item['Id'] != null
+                          ? int.tryParse(item['Id'].toString())
+                          : null,
+                  nombreEmpresa: item['Nombre_Empresa'],
+                  nit: item['Nit'],
+                  direccion: item['Direccion'],
+                  telefono: item['Telefono'],
+                  email: item['Email'],
+                  logo:
+                      item['Logo'] != null
+                          ? int.tryParse(item['Logo'].toString()) ?? 0
+                          : 0,
+                ),
+              );
+
+              int countDatosEmpresa = datosEmpresaList.length;
+              insertCounters['datosEmpresa'] = countDatosEmpresa;
+              return;
+            }(),
+
+          if (opcionesDescarga['productos'] == true)
+            () async {
+              await insertData<ProductsModel>(
+                productList,
+                _productsDao.insertProduct,
+                (item) => ProductsModel(
+                  id: int.parse(item['id']),
+                  ISBN: item['ISBN'],
+                  EAN: item['EAN'],
+                  referencia: item['Referencia'],
+                  descReferencia: item['Desc_Referencia'],
+                  precio: int.parse(item['Precio']),
+                  cantidad: int.parse(item['Cantidad']),
+                  autor: item['Autor'],
+                  selloEditorial: item['Sello_Editorial'],
+                  familia: int.parse(item['Familia']),
+                  mnube: 1,
+                ),
+              );
+
+              int countProductos = productList.length;
+              insertCounters['productos'] = countProductos;
+              return;
+            }(),
+
+          if (opcionesDescarga['productosEspeciales'] == true)
+            () async {
+              await insertData<ProductsEspecialsModel>(
+                especiaList,
+                _productsEspecialsDao.insertProductsEspecials,
+                (item) => ProductsEspecialsModel(
+                  id: int.parse(item['id']),
+                  referencia: item['Referencia'],
+                  descReferencia: item['Desc_Referencia'],
+                  porcentajeDescuento: int.parse(item['Porcentaje_Descuento']),
+                  precio: int.parse(item['Precio']),
+                  acumula: item['Acumula'],
+                  acumulaObsequio: item['Acumula_Obsequio'],
+                  usuario: item['Usuario'],
+                ),
+              );
+
+              int countProductosEspeciales = especiaList.length;
+              insertCounters['productosEspeciales'] = countProductosEspeciales;
+              return;
+            }(),
+
+          if (opcionesDescarga['productosPaquetes'] == true)
+            () async {
+              await insertData<ProductsPaquetesModel>(
+                paqueteList,
+                _productsPaquetesDao.insertProductPaquete,
+                (item) => ProductsPaquetesModel(
+                  id: int.parse(item['id']),
+                  codigoPaquete: int.parse(item['Codigo_Paquete']),
+                  codigoEan: item['Codigo_Ean'],
+                  referencia: item['Referencia'],
+                  descReferencia: item['Descripcion_Referencia'],
+                  precio: item['Precio'],
+                  usuario: item['Usuario'],
+                ),
+              );
+
+              int countProductosPaquetes = paqueteList.length;
+              insertCounters['productosPaquetes'] = countProductosPaquetes;
+              return;
+            }(),
+        ]);
 
         final update = UpdateModel(fechaActualizacion: fechaHoy);
         await _updateDao.insertUpdate(update);
 
-        _message = "Datos sincronizados correctamente.";
+        // Construir el mensaje final con los contadores
+        StringBuffer messageBuffer = StringBuffer(
+          "Datos sincronizados correctamente:\n",
+        );
+        insertCounters.forEach((key, value) {
+          messageBuffer.write("- $key: $value registros insertados\n");
+        });
+
+        _message = messageBuffer.toString();
       } else {
         _message = "Error en la descarga de productos.";
       }

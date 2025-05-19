@@ -1,6 +1,7 @@
 import 'package:app_planeta/infrastructure/local_db/dao/index.dart';
 import 'package:app_planeta/presentation/screens/sube_datos_nube/sube_datos_nube.dart';
 import 'package:app_planeta/providers/syncronized_data.dart';
+import 'package:app_planeta/providers/type_factura_provider.dart';
 import 'package:app_planeta/providers/user_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -34,6 +35,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => SyncronizedData()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => StandProvider()),
+        ChangeNotifierProvider(create: (_) => TypeFacturaProvider()),
         ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
       ],
       child: const MyApp(),
@@ -67,10 +70,17 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isAuthenticated = context.watch<AuthProvider>().isAuthenticated;
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue),
-      home: const ConnectionWrapper(),
+      home: Stack(
+        children: [
+          const ConnectionWrapper(),
+          if (!isAuthenticated) const ConnectionBadge(), // Solo en LoginScreen
+        ],
+      ),
     );
   }
 }
@@ -84,7 +94,7 @@ class ConnectionWrapper extends StatelessWidget {
 
     if (usuario != null) {
       final tipo = usuario.tipoUsuario;
-      return tipo;
+      return tipo ;
     }
     return null;
   }
@@ -115,6 +125,57 @@ class ConnectionWrapper extends StatelessWidget {
         // Fallback
         return const Center(child: Text('Usuario no autorizado'));
       },
+    );
+  }
+}
+
+class ConnectionBadge extends StatelessWidget {
+  const ConnectionBadge({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final isConnected = context.watch<ConnectivityProvider>().isConnected;
+    final currentScreen =
+        context.watch<AuthProvider>().isAuthenticated ? 'home' : 'login';
+
+    return Positioned(
+      top: MediaQuery.of(context).padding.top + 10,
+      left: currentScreen == 'home' ? 20 : null,
+      right: currentScreen == 'home' ? null : 20,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isConnected ? Colors.green.shade600 : Colors.red.shade600,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 6,
+              offset: const Offset(2, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isConnected ? Icons.wifi : Icons.wifi_off,
+              color: Colors.white,
+              size: 18,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              isConnected ? 'Online' : 'Offline',
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+                decoration: TextDecoration.none,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -39,6 +39,20 @@ class ProductsDao {
     });
   }
 
+  // funcion para obtener los registros donde el mnube sea 0
+  Future<List<ProductsModel>> getProductsByMnube() async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'Productos',
+      where: 'mnube = ?',
+      whereArgs: [0],
+    );
+
+    return List.generate(maps.length, (i) {
+      return ProductsModel.fromMap(maps[i]);
+    });
+  }
+
   Future<int> getCountProductosNoNube() async {
     final db = await AppDatabase.database;
     final List<Map<String, dynamic>> maps = await db.query(

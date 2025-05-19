@@ -3,6 +3,7 @@ import 'package:app_planeta/infrastructure/local_db/models/index.dart';
 import 'package:app_planeta/presentation/components/invoce_details.dart';
 import 'package:app_planeta/presentation/components/invoice_component.dart';
 import 'package:app_planeta/providers/connectivity_provider.dart';
+import 'package:app_planeta/providers/type_factura_provider.dart';
 import 'package:app_planeta/utils/alert_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -24,8 +25,15 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _verificarYActualizar();
+
+      // Mover aquí la llamada al provider
+      Provider.of<TypeFacturaProvider>(
+        context,
+        listen: false,
+      ).setTipoFactura(1);
     });
   }
 
