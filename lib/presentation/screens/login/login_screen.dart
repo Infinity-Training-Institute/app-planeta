@@ -106,6 +106,8 @@ class _LoginScreenState extends State<LoginScreen> {
           margin: const EdgeInsets.all(8),
           borderRadius: BorderRadius.circular(8),
         ).show(context);
+
+        _passwordController.clear();
       }
     }
   }

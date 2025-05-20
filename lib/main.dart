@@ -73,7 +73,7 @@ class MyApp extends StatelessWidget {
     final isAuthenticated = context.watch<AuthProvider>().isAuthenticated;
 
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
+      debugShowCheckedModeBanner: true,
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue),
       home: Stack(
         children: [

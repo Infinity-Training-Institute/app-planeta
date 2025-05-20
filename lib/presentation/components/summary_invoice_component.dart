@@ -4,6 +4,7 @@ import 'package:app_planeta/infrastructure/local_db/models/datos_cliente_model.d
 import 'package:app_planeta/presentation/components/ean_scanner_component.dart';
 import 'package:app_planeta/presentation/components/invoce_details.dart';
 import 'package:app_planeta/presentation/screens/home/home_screen.dart';
+import 'package:app_planeta/providers/type_factura_provider.dart';
 import 'package:app_planeta/providers/user_provider.dart';
 import 'package:app_planeta/services/add_new_client.dart';
 import 'package:app_planeta/services/print_invoices_services.dart';
@@ -132,16 +133,6 @@ class SummaryInvoiceComponent extends StatelessWidget {
         .join(' ');
     _ciudadController.text = parts[parts.length - 2];
     _telefonoController.text = parts[parts.length - 1];
-
-    print("Cédula: ${_cedulaController.text}");
-    print("Primer Apellido: ${_primerApellidoController.text}");
-    print("Segundo Apellido: ${_segundoApellidoController.text}");
-    print("Primer Nombre: ${_primerNombreController.text}");
-    print("Segundo Nombre: ${_segundoNombreController.text}");
-    print("Correo: ${_correoController.text}");
-    print("Dirección: ${_direccionController.text}");
-    print("Ciudad: ${_ciudadController.text}");
-    print("Teléfono: ${_telefonoController.text}");
   }
 
   void _clearForm() {
@@ -169,7 +160,7 @@ class SummaryInvoiceComponent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildCreateCustomer(),
+              _buildCreateCustomer(context),
               ValueListenableBuilder<bool>(
                 valueListenable: _createCustomerNotifier,
                 builder: (context, createCustomer, child) {
@@ -290,7 +281,15 @@ class SummaryInvoiceComponent extends StatelessWidget {
     );
   }
 
-  Widget _buildCreateCustomer() {
+  Widget _buildCreateCustomer(BuildContext context) {
+    TypeFacturaProvider typeFacturaProvider = Provider.of<TypeFacturaProvider>(
+      context,
+      listen: false,
+    );
+
+    if (typeFacturaProvider.tipoFactura == 2) {
+      _createCustomerNotifier.value = true;
+    }
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -315,17 +314,19 @@ class SummaryInvoiceComponent extends StatelessWidget {
                     },
                   ),
                   const Text("Sí"),
-                  Radio<bool>(
-                    value: false,
-                    groupValue: _createCustomerNotifier.value,
-                    onChanged: (val) {
-                      _createCustomerNotifier.value = val!;
-                      if (val == false) {
-                        _clearForm(); // Limpiar si se selecciona "No"
-                      }
-                    },
-                  ),
-                  const Text("No"),
+                  if (typeFacturaProvider.tipoFactura != 2) ...[
+                    Radio<bool>(
+                      value: false,
+                      groupValue: _createCustomerNotifier.value,
+                      onChanged: (val) {
+                        _createCustomerNotifier.value = val!;
+                        if (val == false) {
+                          _clearForm(); // Limpiar si se selecciona "No"
+                        }
+                      },
+                    ),
+                    const Text("No"),
+                  ],
                 ],
               );
             },
@@ -521,6 +522,25 @@ class SummaryInvoiceComponent extends StatelessWidget {
                 }
               }
               if (!context.mounted) return;
+
+              print({
+                'invoiceValue': invoiceValue,
+                'products':
+                    products
+                        .map((p) => {'name': p.price, 'price': p.price})
+                        .toList(),
+                'datosClientes':
+                    datosClientes
+                        .map((c) => {'nombre': c.cldire, 'documento': c.clciud})
+                        .toList(),
+                'payments':
+                    payments
+                        .map((p) => {'method': p.method, 'amount': p.amount})
+                        .toList(),
+                'typeInvoice': typeInvoice,
+                'changeAmount': changeAmount,
+              });
+
               final pdf = await invoiceService.generateInvoice(
                 context,
                 products,

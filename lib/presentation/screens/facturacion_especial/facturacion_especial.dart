@@ -17,6 +17,7 @@ class FacturacionEspecial extends StatefulWidget {
 class _FacturacionEspecial extends State<FacturacionEspecial> {
   int invoiceDiscount = 0;
   bool _isDialogCompleted = false; // Controla si ya se ingresó el descuento
+  final _discountFormKey = GlobalKey<FormState>();
 
   @override
   void initState() {
@@ -34,45 +35,60 @@ class _FacturacionEspecial extends State<FacturacionEspecial> {
   }
 
   void _showDiscountDialog() {
-    TextEditingController discountController = TextEditingController();
+    final discountController = TextEditingController();
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       showDialog(
         context: context,
-        barrierDismissible: false, // Evita cerrar tocando fuera
+        barrierDismissible: false,
         builder: (context) {
           return AlertDialog(
             title: const Text("Entrada Facturación Especial"),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text("(%) Descuento"),
-                TextField(
-                  controller: discountController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: "Descuento"),
-                ),
-              ],
+            content: Form(
+              key: _discountFormKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text("(%) Descuento"),
+                  TextFormField(
+                    controller: discountController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: "Descuento"),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor ingresa un número';
+                      }
+                      final parsed = int.tryParse(value);
+                      if (parsed == null) {
+                        return 'Debe ser un número entero';
+                      }
+                      if (parsed < 1 || parsed > 100) {
+                        return 'Los rangos permitidos son 1 a 100';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
             ),
             actions: [
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  Navigator.pop(context); // Cierra la pantalla si cancela
+                  Navigator.pop(context);
                 },
                 child: const Text("Cancelar"),
               ),
               ElevatedButton(
                 onPressed: () {
-                  setState(() {
-                    final text = discountController.text;
-                    // Asegúrate de que `text` sea válido como entero
-                    invoiceDiscount =
-                        int.tryParse(text) ??
-                        0; // Si no se puede convertir, asigna 0
-                    _isDialogCompleted = true; // Permite mostrar la pantalla
-                  });
-                  Navigator.pop(context);
+                  if (_discountFormKey.currentState!.validate()) {
+                    setState(() {
+                      invoiceDiscount = int.parse(discountController.text);
+                      _isDialogCompleted = true;
+                    });
+                    Navigator.pop(context);
+                  }
+                  // Si no pasa la validación, el error se muestra automáticamente.
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,

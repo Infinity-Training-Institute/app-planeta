@@ -85,18 +85,18 @@ class InvoiceService with ChangeNotifier {
     }
 
     String getPaymentAbbreviation(Map<String, int> paymentValues) {
-      final active =
-          paymentValues.entries
-              .where((e) => e.value > 0)
-              .map((e) => e.key)
-              .toList();
-      if (active.length > 1) return 'M';
+      final methods = paymentValues.keys.toList();
+
+      if (methods.isEmpty) return '';
+
+      if (methods.length > 1) return 'M';
+
       return {
             'Efectivo': 'E',
             'Tarjeta': 'T',
             'Bono': 'B',
             'QR Banco': 'C',
-          }[active.first] ??
+          }[methods.first] ??
           '';
     }
 
@@ -481,7 +481,9 @@ class InvoiceService with ChangeNotifier {
       McabfaModel(
         mcnufa: int.tryParse(caja?.facturaActual ?? '') ?? 0,
         mcnuca: (caja?.numeroCaja.toString() ?? '0'),
-        mccecl: int.tryParse(cliente?.clcecl ?? '222222222222') ?? 222222222222,
+        mccecl: clientes.isNotEmpty
+            ? int.tryParse(clientes.first.clcecl) ?? 222222222222
+            : 222222222222,
         mcfefa: int.parse(DateFormat('yyyyMMdd').format(DateTime.now())),
         mchora: DateFormat('hh:mm:ss').format(DateTime.now()),
         mcfopa: getPaymentAbbreviation(paymentValues),

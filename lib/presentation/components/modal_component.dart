@@ -116,7 +116,8 @@ class PaymentModalState extends State<PaymentModal> {
       }
 
       if (['QR Banco'].contains(_selectedPaymentMethod) &&
-          _phoneNumberController.text.length < 10) {
+              _phoneNumberController.text.length < 10 ||
+          _phoneNumberController.text.length > 10) {
         showAlert(
           context,
           'Error',
@@ -132,7 +133,8 @@ class PaymentModalState extends State<PaymentModal> {
       }
 
       if (['Tarjeta'].contains(_selectedPaymentMethod) &&
-          authNumber.length < 6) {
+              authNumber.length < 6 ||
+          authNumber.length > 6) {
         showAlert(
           context,
           'Error',
@@ -348,6 +350,14 @@ class PaymentModalState extends State<PaymentModal> {
                 setState(() {
                   _selectedPaymentMethod = value!;
                   _selectedCardType = null;
+                  _amountCardController.clear();
+                  _amountQrController.clear();
+                  _bonoValueController.clear();
+                  _bonoQuantityController.clear();
+                  _phoneNumberController.clear();
+                  _selectedCardType2 = null;
+                  _authNumberCard.clear();
+                  _amountMoneyController.clear();
                 });
               },
               decoration: const InputDecoration(

@@ -171,7 +171,7 @@ class _InvoceDetails extends State<InvoceDetails> {
     double totalCalculado = precio * cantidad;
 
     final nuevoProducto = Product(
-      reference: reference,
+      reference: data["Referencia"],
       description: data['Desc_Referencia'],
       price: precio,
       fairPrice: precio,
@@ -366,38 +366,58 @@ class _InvoceDetails extends State<InvoceDetails> {
 
       // Solo procesamos productos tipo T si hay suficientes para formar un grupo
       if (tipoT.length >= 3) {
-        // Calculate how many complete groups of 3 we have
+        // Calcular cuántos grupos completos de 3 tenemos
         int completeGroups = tipoT.length ~/ 3;
         List<Product> discountedProducts = [];
 
-        // Process each complete group of 3
+        // Procesar cada grupo de 3 productos
         for (int i = 0; i < completeGroups; i++) {
           int startIndex = i * 3;
-          List<Product> group = tipoT.sublist(startIndex, startIndex + 3);
+          List<Product> currentGroup = tipoT.sublist(startIndex, startIndex + 3);
 
-          // Check if all products in the group have the same reference
-          bool sameReference = group.every(
-            (p) => p.reference == group[0].reference,
+          // Verificar si todos tienen la misma referencia
+          bool sameReference = currentGroup.every(
+            (p) => p.reference == currentGroup[0].reference,
           );
 
           Product productToDiscount;
-
+          
           if (sameReference) {
-            // If same reference, choose the last one
-            productToDiscount = group[2];
+            // Si misma referencia, elegir el último
+            productToDiscount = currentGroup[2];
           } else {
-            // If different references, find the cheapest one
-            productToDiscount = group.reduce(
+            // Encontrar el más barato del grupo
+            productToDiscount = currentGroup.reduce(
               (a, b) => a.price < b.price ? a : b,
             );
           }
 
-          // Add to our tracking list for debugging
+          // Agregar a la lista de productos con descuento
           discountedProducts.add(productToDiscount);
+        }
 
-          // Apply the discount
-          productToDiscount.fairPrice = 0;
-          productToDiscount.total = 0;
+        // Aplicar descuentos manteniendo los grupos originales
+        for (int i = 0; i < tipoT.length; i++) {
+          Product product = tipoT[i];
+          int groupIndex = i ~/ 3; // Determinar a qué grupo pertenece
+          
+          if (groupIndex < completeGroups) { // Solo procesar productos en grupos completos
+            if (discountedProducts.contains(product)) {
+              // Este es el producto más barato de su grupo
+              product.fairPrice = 0;
+              product.total = 0;
+            } else {
+              // Este producto está en un grupo pero no es el más barato
+              product.fairPrice = product.price;
+              double cantidad = double.tryParse(product.quantity) ?? 1.0;
+              product.total = product.fairPrice * cantidad;
+            }
+          } else {
+            // Productos que no forman parte de un grupo completo mantienen precio original
+            product.fairPrice = product.price;
+            double cantidad = double.tryParse(product.quantity) ?? 1.0;
+            product.total = product.fairPrice * cantidad;
+          }
         }
       }
 
@@ -1199,14 +1219,6 @@ class _InvoceDetails extends State<InvoceDetails> {
                             TextSpan(
                               text: "$promoText ",
                               style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const TextSpan(text: "("),
-                            TextSpan(
-                              text: formattedDate,
-                              style: const TextStyle(
-                                color: Colors.red,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -1548,18 +1560,15 @@ class _InvoceDetails extends State<InvoceDetails> {
                                 width: double.infinity,
                                 child: ElevatedButton(
                                   onPressed:
-                                      () => _showPaymentModal(
-                                        context,
-                                        // Actualizamos el total final
-                                        totalFinal = products.fold<int>(
-                                          0,
-                                          (sum, item) =>
-                                              sum +
-                                              (item.total > 0
-                                                  ? item.total.toInt()
-                                                  : 0),
-                                        ),
-                                      ),
+                                    () => _showPaymentModal(
+                                      context,
+                                      // Actualizamos el total final
+                                      totalFinal = products.fold<num>(
+                                                0,
+                                                (sum, item) =>
+                                                    sum + item.total,
+                                              ).toInt(),
+                                    ),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.green,
                                     foregroundColor: Colors.white,
