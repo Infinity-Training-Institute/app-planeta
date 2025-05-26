@@ -34,9 +34,6 @@ class InvoiceService with ChangeNotifier {
       listen: false,
     );
 
-    print("typeFacturacion: ${tipoFacturacion.tipoFactura}");
-    print("tipo de facuta ${tipoFacturacion.tipoFactura == 1 ? 'N' : 'E'}");
-
     final pdf = pw.Document();
     final userProvider = Provider.of<UserProvider>(context, listen: false);
 
@@ -295,8 +292,6 @@ class InvoiceService with ChangeNotifier {
                       pw.Text(CurrencyFormatter.formatCOP(diference)),
                     ],
                   ),
-
-                  // TODO: PONER EL CAJERO
                   pw.SizedBox(height: 10),
                   pw.Text(
                     'Cajero: ${users?.nickUsuario} - Consecutivo ${users?.facturaAlternaUsuario} - ${users?.cajaUsuario}',
@@ -370,7 +365,7 @@ class InvoiceService with ChangeNotifier {
                     textAlign: pw.TextAlign.center,
                   ),
                   pw.Text(
-                    'VIGENCIA: 24 MESES, PREFIJO ${caja?.numeroCaja}, AUTORIZA DESDE ${caja?.facturaInicio} AL ${caja?.facturaActual}',
+                    'VIGENCIA: 24 MESES, PREFIJO ${caja?.numeroCaja}, AUTORIZA DESDE ${caja?.facturaInicio} AL ${caja?.facturaFinal}',
                     textAlign: pw.TextAlign.center,
                   ),
                   pw.SizedBox(height: 5),
@@ -425,34 +420,45 @@ class InvoiceService with ChangeNotifier {
 
     double totalDiscount = 0;
     double totalPrice = 0;
-    //double totalFairPrice = 0;
-
     double maxDiscountPercent = 0;
 
+    /**
+      * Función para calcular el descuento entre el precio normal y el precio de feria
+      * Retorna el porcentaje de descuento y el total de descuento
+    */
     for (var product in products) {
       final price = double.parse(product.price.toString());
       final fairPrice = double.parse(product.fairPrice.toString());
-      final quantity = int.parse(product.quantity.toString());
+      final quantity = double.parse(product.quantity.toString());
 
-      totalDiscount += (price - fairPrice) * quantity;
-      totalPrice += price * quantity;
-      // totalFairPrice += fairPrice * quantity;
+      // Verificar si fairPrice es válido (no es 0)
+      if (fairPrice >= 0) {
+        // Calcular el descuento
+        final discount = price - fairPrice;
+        totalDiscount += discount * quantity;
+        totalPrice += price * quantity;
 
-      if (price > 0) {
-        final discountPercent = ((price - fairPrice) / price) * 100;
-
-        if (discountPercent > maxDiscountPercent) {
-          maxDiscountPercent = discountPercent;
+        // Calcular el porcentaje de descuento solo si hay un descuento real
+        if (price > 0 && fairPrice < price) {
+          final discountPercent = (discount / price) * 100;
+          if (discountPercent > maxDiscountPercent) {
+            maxDiscountPercent = discountPercent;
+          }
         }
       }
     }
 
-    final mcpode = maxDiscountPercent.round();
-    final mcvade = totalDiscount;
+    // Calcular el porcentaje promedio de descuento global basado en los totales
+    double averageDiscountPercent = 0;
+    if (totalPrice > 0) {
+      averageDiscountPercent = (totalDiscount / totalPrice) * 100;
+    }
 
-    print(mcvade);
-    final mcvabr = totalPrice;
-    // final mcvane = totalFairPrice;
+    final mcpode =
+        averageDiscountPercent.round(); // Porcentaje promedio de descuento
+    final mcvade = totalDiscount; // Valor total de descuento
+    final mcvabr =
+        totalPrice; // Monto total sin descuento (precio normal total)
 
     final bonoList = payments.where((p) => p.method == 'Bono').toList();
     dynamic bonoValue; // Valor unitario del bono
@@ -481,9 +487,10 @@ class InvoiceService with ChangeNotifier {
       McabfaModel(
         mcnufa: int.tryParse(caja?.facturaActual ?? '') ?? 0,
         mcnuca: (caja?.numeroCaja.toString() ?? '0'),
-        mccecl: clientes.isNotEmpty
-            ? int.tryParse(clientes.first.clcecl) ?? 222222222222
-            : 222222222222,
+        mccecl:
+            clientes.isNotEmpty
+                ? int.tryParse(clientes.first.clcecl) ?? 222222222222
+                : 222222222222,
         mcfefa: int.parse(DateFormat('yyyyMMdd').format(DateTime.now())),
         mchora: DateFormat('hh:mm:ss').format(DateTime.now()),
         mcfopa: getPaymentAbbreviation(paymentValues),
@@ -557,8 +564,6 @@ class InvoiceService with ChangeNotifier {
         ),
       );
     }
-
-    print(users);
 
     // actualizamos el numero de la factura alterna
     await UserDao().updateFacturaAlternaUsuario(

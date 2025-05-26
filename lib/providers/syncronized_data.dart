@@ -278,6 +278,8 @@ class SyncronizedData with ChangeNotifier {
                   facturaActual: item['Factura_Actual'],
                   nickUsuario: item['Nick_Usuario'],
                   claveTecnica: item['Clave_Tecnica'],
+                  facturaFinal: item['Factura_Final'],
+                  datosNube: 0
                 ),
               );
 

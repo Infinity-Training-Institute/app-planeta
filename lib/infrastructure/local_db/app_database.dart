@@ -13,10 +13,10 @@ class AppDatabase {
 
   static Future<Database> _initDatabase() async {
     // Obtén la ruta de la base de datos
-    //String path = join(await getDatabasesPath(), 'app_database.db');
+    // String path = join(await getDatabasesPath(), 'app_database.db');
 
     // Elimina la base de datos
-    //await deleteDatabase(path);
+    // await deleteDatabase(path);
     return openDatabase(
       join(await getDatabasesPath(), 'app_database.db'),
       version: 2,
@@ -216,7 +216,9 @@ class AppDatabase {
             Numero_Resolucion TEXT NOT NULL, -- Resolucion
             Factura_Actual INTEGER NOT NULL, -- # Factura Actual
             Nick_Usuario TEXT NOT NULL, -- Nick Usuario
-            Clave_Tecnica TEXT NOT NULL
+            Clave_Tecnica TEXT NOT NULL,
+            Factura_Final INTEGER NOT NULL, -- # Factura Final
+            Datos_nube TEXT NOT NULL -- Datos en la nube
           )
         ''');
 

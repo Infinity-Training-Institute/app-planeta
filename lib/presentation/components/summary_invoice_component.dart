@@ -45,7 +45,7 @@ class SummaryInvoiceComponent extends StatelessWidget {
   final int mixedAmount; // Si usas mezcla de pagos
   final int changeAmount; // Cambio total si lo necesitas
   final List<Product> products;
-  final List<DatosClienteModel> datosClientes = [];
+  late List<DatosClienteModel> datosClientes = [];
 
   // Add these controllers at the class level
   final TextEditingController _cedulaController = TextEditingController();
@@ -65,7 +65,7 @@ class SummaryInvoiceComponent extends StatelessWidget {
     false,
   );
   final ValueNotifier<String> _selectedPersonType = ValueNotifier<String>(
-    'Natural',
+    'Escoge una opción',
   );
 
   SummaryInvoiceComponent({
@@ -364,6 +364,10 @@ class SummaryInvoiceComponent extends StatelessWidget {
                     ),
                     items: const [
                       DropdownMenuItem(
+                        value: "Escoge una opción",
+                        child: Text("Escoge una opción"),
+                      ),
+                      DropdownMenuItem(
                         value: "Natural",
                         child: Text("Natural"),
                       ),
@@ -458,6 +462,53 @@ class SummaryInvoiceComponent extends StatelessWidget {
             onPressed: () async {
               if (_createCustomerNotifier.value) {
                 try {
+                  // checkamos si el tipo de factura es 2 para obligar a crear el cliente
+                  TypeFacturaProvider typeFacturaProvider =
+                      Provider.of<TypeFacturaProvider>(context, listen: false);
+
+                  if (typeFacturaProvider.tipoFactura == 2) {
+                    if (_selectedPersonType.value == 'Escoge una opción') {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Seleccione un tipo de persona'),
+                          ),
+                        );
+                      }
+                      return;
+                    }
+
+                    // verificamos que los campos no esten vacios
+                    if (_cedulaController.text.isEmpty ||
+                        _primerApellidoController.text.isEmpty ||
+                        _primerNombreController.text.isEmpty ||
+                        _correoController.text.isEmpty ||
+                        _direccionController.text.isEmpty ||
+                        _ciudadController.text.isEmpty ||
+                        _telefonoController.text.isEmpty) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Complete todos los campos'),
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                  }
+
+                  // checkeamos si el cliente ya existe
+                  if (datosClientes.any(
+                    (client) => client.clciud == _cedulaController.text,
+                  )) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('El cliente ya existe')),
+                      );
+                    }
+                    return;
+                  }
+
                   final userProvider = Provider.of<UserProvider>(
                     context,
                     listen: false,
@@ -522,25 +573,6 @@ class SummaryInvoiceComponent extends StatelessWidget {
                 }
               }
               if (!context.mounted) return;
-
-              print({
-                'invoiceValue': invoiceValue,
-                'products':
-                    products
-                        .map((p) => {'name': p.price, 'price': p.price})
-                        .toList(),
-                'datosClientes':
-                    datosClientes
-                        .map((c) => {'nombre': c.cldire, 'documento': c.clciud})
-                        .toList(),
-                'payments':
-                    payments
-                        .map((p) => {'method': p.method, 'amount': p.amount})
-                        .toList(),
-                'typeInvoice': typeInvoice,
-                'changeAmount': changeAmount,
-              });
-
               final pdf = await invoiceService.generateInvoice(
                 context,
                 products,

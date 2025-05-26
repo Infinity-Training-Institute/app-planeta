@@ -614,8 +614,8 @@ class PaymentModalState extends State<PaymentModal> {
 void showAddProductDialog(
   BuildContext context,
   TextEditingController referenceController,
+  TextEditingController barcodeController,
 ) {
-  final barcodeController = TextEditingController();
   final nameController = TextEditingController();
   final priceController = TextEditingController();
   final referenciaController = TextEditingController(text: "9999999");
@@ -636,14 +636,6 @@ void showAddProductDialog(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                readOnly: true,
-                decoration: InputDecoration(
-                  labelText: 'Referencia',
-                  border: OutlineInputBorder(),
-                ),
-                controller: referenciaController,
-              ),
               SizedBox(height: 12),
               TextField(
                 controller: barcodeController,
