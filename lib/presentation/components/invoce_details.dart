@@ -1428,34 +1428,34 @@ class _InvoceDetails extends State<InvoceDetails> {
 
                           Column(
                             children: [
-                              SizedBox(
-                                width: double.infinity,
-                                child: OutlinedButton.icon(
-                                  onPressed:
-                                      () => _addProduct(
-                                        context,
-                                        _referenceController.text,
-                                      ),
-                                  icon: const Icon(
-                                    Icons.qr_code_scanner,
-                                    size: 24,
-                                  ),
-                                  label: const Text("Grabar"),
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: const Color(0xFF4CAF50),
-                                    side: const BorderSide(
-                                      color: Color(0xFF4CAF50),
-                                    ),
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 16,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(8),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 10), //
+                              // SizedBox(
+                              //   width: double.infinity,
+                              //   child: OutlinedButton.icon(
+                              //     onPressed:
+                              //         () => _addProduct(
+                              //           context,
+                              //           _referenceController.text,
+                              //         ),
+                              //     icon: const Icon(
+                              //       Icons.qr_code_scanner,
+                              //       size: 24,
+                              //     ),
+                              //     label: const Text("Grabar"),
+                              //     style: OutlinedButton.styleFrom(
+                              //       foregroundColor: const Color(0xFF4CAF50),
+                              //       side: const BorderSide(
+                              //         color: Color(0xFF4CAF50),
+                              //       ),
+                              //       padding: const EdgeInsets.symmetric(
+                              //         vertical: 16,
+                              //       ),
+                              //       shape: RoundedRectangleBorder(
+                              //         borderRadius: BorderRadius.circular(8),
+                              //       ),
+                              //     ),
+                              //   ),
+                              // ),
+                              // const SizedBox(height: 10), //
                               SizedBox(
                                 width: double.infinity,
                                 child: OutlinedButton.icon(
