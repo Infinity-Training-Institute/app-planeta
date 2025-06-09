@@ -108,7 +108,6 @@ class SummaryInvoiceComponent extends StatelessWidget {
     List<String> parts = cleaned.split(' ');
 
     if (parts.length < 9) {
-      print("Datos insuficientes para procesar");
       return;
     }
 
@@ -121,7 +120,6 @@ class SummaryInvoiceComponent extends StatelessWidget {
     // Buscar el índice del correo
     int correoIndex = parts.indexWhere((part) => part.contains('@'));
     if (correoIndex == -1 || correoIndex + 3 > parts.length) {
-      print("Correo no encontrado o datos mal formados");
       return;
     }
 
@@ -149,33 +147,39 @@ class SummaryInvoiceComponent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Resumen de Factura'),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildCreateCustomer(context),
-              ValueListenableBuilder<bool>(
-                valueListenable: _createCustomerNotifier,
-                builder: (context, createCustomer, child) {
-                  return createCustomer
-                      ? _buildCustomerForm(context)
-                      : const SizedBox.shrink();
-                },
-              ),
-              const SizedBox(height: 16),
-              _buildInvoiceCard(),
-              const SizedBox(height: 16),
-              _buildTransactionSummary(),
-              const SizedBox(height: 20),
-              _buildActionButtons(context),
-            ],
+    return WillPopScope(
+      onWillPop: () async {
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Resumen de Factura'),
+          centerTitle: true,
+          automaticallyImplyLeading: false,
+        ),
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildCreateCustomer(context),
+                ValueListenableBuilder<bool>(
+                  valueListenable: _createCustomerNotifier,
+                  builder: (context, createCustomer, child) {
+                    return createCustomer
+                        ? _buildCustomerForm(context)
+                        : const SizedBox.shrink();
+                  },
+                ),
+                const SizedBox(height: 16),
+                _buildInvoiceCard(),
+                const SizedBox(height: 16),
+                _buildTransactionSummary(),
+                const SizedBox(height: 20),
+                _buildActionButtons(context),
+              ],
+            ),
           ),
         ),
       ),
@@ -582,15 +586,18 @@ class SummaryInvoiceComponent extends StatelessWidget {
                 typeInvoice,
                 changeAmount,
               ); // Generar PDF
-              await Printing.layoutPdf(
+              final didPrint = await Printing.layoutPdf(
                 onLayout: (format) async => pdf?.save() ?? Uint8List(0),
               );
 
               if (!context.mounted) return;
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => HomeScreen()),
-                (route) => false,
-              );
+              if (didPrint == true) {
+                // solo navega si el usuario realmente imprimio
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => HomeScreen()),
+                  (route) => false,
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,

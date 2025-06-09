@@ -161,12 +161,17 @@ class _FacturacionEspecial extends State<FacturacionEspecial> {
       return const SizedBox();
     }
 
-    return InvoiceComponent(
-      title: "Facturación Especial",
-      body: InvoceDetails(
-        onSync: () => onSync(context),
-        invoiceDiscount: invoiceDiscount,
-        typeFactura: "2",
+    return WillPopScope(
+      onWillPop: () async {
+        return false;
+      },
+      child: InvoiceComponent(
+        title: "Facturación Especial",
+        body: InvoceDetails(
+          onSync: () => onSync(context),
+          invoiceDiscount: invoiceDiscount,
+          typeFactura: "2",
+        ),
       ),
     );
   }

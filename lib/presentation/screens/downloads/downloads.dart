@@ -80,90 +80,95 @@ class _DescargaScreenState extends State<DescargaScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      key: scaffoldKey,
-      appBar: AppBar(
-        title: const Text(
-          'Seleccionar Preferencias',
-          style: TextStyle(fontWeight: FontWeight.w500),
+    return WillPopScope(
+      onWillPop: () async {
+        return false;
+      },
+      child: Scaffold(
+        key: scaffoldKey,
+        appBar: AppBar(
+          title: const Text(
+            'Seleccionar Preferencias',
+            style: TextStyle(fontWeight: FontWeight.w500),
+          ),
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () {
+              scaffoldKey.currentState?.openDrawer();
+            },
+          ),
+          centerTitle: true,
         ),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {
-            scaffoldKey.currentState?.openDrawer();
-          },
-        ),
-        centerTitle: true,
-      ),
-      drawer: DrawerComponent(),
-      body:
-          _cargando
-              ? const Center(child: CircularProgressIndicator())
-              : Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  children: [
-                    Card(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      margin: const EdgeInsets.only(bottom: 16),
-                      child: SwitchListTile(
-                        title: const Text('Descargar Todo'),
-                        value: _descargarTodo,
-                        onChanged: _toggleDescargarTodo,
-                        activeColor: theme.colorScheme.primary,
-                        tileColor: theme.colorScheme.surface,
+        drawer: DrawerComponent(),
+        body:
+            _cargando
+                ? const Center(child: CircularProgressIndicator())
+                : Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      Card(
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),
-                      ),
-                    ),
-                    Expanded(
-                      child: ListView(
-                        children: [
-                          _sectionCard('Datos de Productos', [
-                            _checkbox('productos', 'Productos'),
-                            _checkbox(
-                              'productosEspeciales',
-                              'Productos especiales',
-                            ),
-                            _checkbox(
-                              'productosPaquetes',
-                              'Productos paquetes',
-                            ),
-                          ]),
-                          _sectionCard('Información Adicional', [
-                            _checkbox('textoFactura', 'Texto factura'),
-                            _checkbox('datosCaja', 'Datos caja'),
-                            _checkbox('datosEmpresa', 'Datos empresa'),
-                          ]),
-                          _sectionCard('Promociones', [
-                            _checkbox('promociones', 'Promociones'),
-                            _checkbox('promocionHora', 'Promoción por hora'),
-                            _checkbox(
-                              'promocionCantidad',
-                              'Promoción por cantidad',
-                            ),
-                          ]),
-                        ],
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      onPressed: _savePreferences,
-                      icon: const Icon(Icons.check_circle_outline),
-                      label: const Text('Guardar Selección'),
-                      style: ElevatedButton.styleFrom(
-                        minimumSize: const Size.fromHeight(50),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        child: SwitchListTile(
+                          title: const Text('Descargar Todo'),
+                          value: _descargarTodo,
+                          onChanged: _toggleDescargarTodo,
+                          activeColor: theme.colorScheme.primary,
+                          tileColor: theme.colorScheme.surface,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      Expanded(
+                        child: ListView(
+                          children: [
+                            _sectionCard('Datos de Productos', [
+                              _checkbox('productos', 'Productos'),
+                              _checkbox(
+                                'productosEspeciales',
+                                'Productos especiales',
+                              ),
+                              _checkbox(
+                                'productosPaquetes',
+                                'Productos paquetes',
+                              ),
+                            ]),
+                            _sectionCard('Información Adicional', [
+                              _checkbox('textoFactura', 'Texto factura'),
+                              _checkbox('datosCaja', 'Datos caja'),
+                              _checkbox('datosEmpresa', 'Datos empresa'),
+                            ]),
+                            _sectionCard('Promociones', [
+                              _checkbox('promociones', 'Promociones'),
+                              _checkbox('promocionHora', 'Promoción por hora'),
+                              _checkbox(
+                                'promocionCantidad',
+                                'Promoción por cantidad',
+                              ),
+                            ]),
+                          ],
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _savePreferences,
+                        icon: const Icon(Icons.check_circle_outline),
+                        label: const Text('Guardar Selección'),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: const Size.fromHeight(50),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+      ),
     );
   }
 

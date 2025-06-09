@@ -120,8 +120,8 @@ class AuthProvider with ChangeNotifier {
           );
         }
 
-        // guardamos el stand
-        userProvider.setStand(userData['Stand']);
+        // guardamos la caja
+        userProvider.setStand(userData['Caja_Usuario']);
       }
     } catch (e) {
       _isAuthenticated = false;

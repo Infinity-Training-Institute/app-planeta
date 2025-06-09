@@ -116,8 +116,7 @@ class PaymentModalState extends State<PaymentModal> {
       }
 
       if (['QR Banco'].contains(_selectedPaymentMethod) &&
-              _phoneNumberController.text.length < 10 ||
-          _phoneNumberController.text.length > 10) {
+              _phoneNumberController.text.length < 10) {
         showAlert(
           context,
           'Error',
@@ -133,8 +132,7 @@ class PaymentModalState extends State<PaymentModal> {
       }
 
       if (['Tarjeta'].contains(_selectedPaymentMethod) &&
-              authNumber.length < 6 ||
-          authNumber.length > 6) {
+              authNumber.length < 6) {
         showAlert(
           context,
           'Error',
@@ -449,6 +447,7 @@ class PaymentModalState extends State<PaymentModal> {
               TextField(
                 controller: _authNumberCard,
                 keyboardType: TextInputType.text,
+                maxLength: 13,
                 decoration: const InputDecoration(
                   labelText: 'Numero De Autorización',
                   border: OutlineInputBorder(),
@@ -461,6 +460,7 @@ class PaymentModalState extends State<PaymentModal> {
               const SizedBox(height: 16),
               TextField(
                 controller: _phoneNumberController,
+                maxLength: 10,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Numero de celular',

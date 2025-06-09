@@ -16,7 +16,6 @@ import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   // Solicitar permisos necesarios al iniciar la app
   await requestPermissions();
 
@@ -94,7 +93,7 @@ class ConnectionWrapper extends StatelessWidget {
 
     if (usuario != null) {
       final tipo = usuario.tipoUsuario;
-      return tipo ;
+      return tipo;
     }
     return null;
   }
