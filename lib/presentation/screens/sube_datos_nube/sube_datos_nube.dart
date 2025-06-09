@@ -29,30 +29,33 @@ class _SubeDatosNubeState extends State<SubeDatosNube>
   late AnimationController _animationController;
   late Animation<double> _animation;
 
-  // Función para obtener los datos
   Future<void> obtenerDatos() async {
     if (isRefreshing) return;
 
+    // Primera setState: no hay await antes, así que el widget sigue montado.
     setState(() {
       isRefreshing = true;
     });
 
-    // Simulamos una operación de carga
+    // Simula carga
     await Future.delayed(const Duration(milliseconds: 1500));
 
-    // Aquí implementarías la lógica para obtener los datos reales
-
-    final countMcafba = await DatosMcabfaDao().getCountMcabfa();
+    // Cargas reales
+    final countMcabfa = await DatosMcabfaDao().getCountMcabfa();
     final countMlinfa = await DatosMlinfaDao().getCountMlinfa();
     final countMcliente = await DatosClienteDao().getCountClientes();
     final countProducto = await ProductsDao().getCountProductosNoNube();
 
     print(countMlinfa);
 
+    // Comprueba que el State siga montado
+    if (!mounted) return;
+
+    // Segunda setState: seguro porque chequeamos mounted
     setState(() {
-      mclienteCount = countMcliente;
+      mcabfaCount = countMcabfa;
       mlinfaCount = countMlinfa;
-      mcabfaCount = countMcafba;
+      mclienteCount = countMcliente;
       productosCount = countProducto;
       isRefreshing = false;
     });
@@ -101,8 +104,8 @@ class _SubeDatosNubeState extends State<SubeDatosNube>
     }
 
     // consultamos mcabfa, mlinfa y mclient
-    final dataMcabfa = await DatosMcabfaDao().getAllMcabfa();
-    final dataMlinfa = await DatosMlinfaDao().getAllMlinfa();
+    final dataMcabfa = await DatosMcabfaDao().getMcabfaByMnube0();
+    final dataMlinfa = await DatosMlinfaDao().getMlinfaByMnube();
     final dataClient =
         await DatosClienteDao().getClientesPendientesDeSincronizar();
     final dataProducts = await ProductsDao().getProductsNotSynced();
@@ -298,67 +301,74 @@ class _SubeDatosNubeState extends State<SubeDatosNube>
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      key: scaffoldKey,
-      appBar: AppBar(
-        title: const Text(
-          'Subir Datos a la Nube',
-          style: TextStyle(fontWeight: FontWeight.w500),
-        ),
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu),
-          onPressed: () {
-            scaffoldKey.currentState?.openDrawer();
-          },
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon:
-                isRefreshing
-                    ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    )
-                    : const Icon(Icons.refresh),
-            onPressed: isRefreshing ? null : obtenerDatos,
-            tooltip: 'Actualizar datos',
+    return WillPopScope(
+      onWillPop: () async {
+        return false;
+      },
+      child: Scaffold(
+        key: scaffoldKey,
+        appBar: AppBar(
+          title: const Text(
+            'Subir Datos a la Nube',
+            style: TextStyle(fontWeight: FontWeight.w500),
           ),
-        ],
-      ),
-      drawer: DrawerComponent(),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors:
-                isDarkMode
-                    ? [Colors.grey.shade900, Colors.black]
-                    : [Colors.indigo.shade50, Colors.grey.shade100],
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.menu),
+            onPressed: () {
+              scaffoldKey.currentState?.openDrawer();
+            },
           ),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon:
+                  isRefreshing
+                      ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
+                        ),
+                      )
+                      : const Icon(Icons.refresh),
+              onPressed: isRefreshing ? null : obtenerDatos,
+              tooltip: 'Actualizar datos',
+            ),
+          ],
         ),
-        child: SafeArea(
-          child: FadeTransition(
-            opacity: _animation,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  const SizedBox(height: 24),
-                  _buildHeader(),
-                  const SizedBox(height: 32),
-                  Expanded(child: _buildDataCards()),
-                  const SizedBox(height: 24),
-                  _buildSyncButton(),
-                  const SizedBox(height: 24),
-                ],
+        drawer: DrawerComponent(),
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors:
+                  isDarkMode
+                      ? [Colors.grey.shade900, Colors.black]
+                      : [Colors.indigo.shade50, Colors.grey.shade100],
+            ),
+          ),
+          child: SafeArea(
+            child: FadeTransition(
+              opacity: _animation,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    const SizedBox(height: 24),
+                    _buildHeader(),
+                    const SizedBox(height: 32),
+                    Expanded(child: _buildDataCards()),
+                    const SizedBox(height: 24),
+                    _buildSyncButton(),
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
             ),
           ),

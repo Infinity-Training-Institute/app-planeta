@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:app_planeta/infrastructure/local_db/dao/index.dart';
-import 'package:app_planeta/infrastructure/local_db/models/index.dart';
 import 'package:app_planeta/presentation/components/ean_scanner_component.dart';
 import 'package:app_planeta/presentation/components/modal_component.dart';
+import 'package:app_planeta/providers/type_factura_provider.dart';
 import 'package:app_planeta/providers/user_provider.dart';
 import 'package:app_planeta/services/promocion_cantidad_services.dart';
 import 'package:app_planeta/services/ref_libro_especial.dart';
@@ -142,7 +142,7 @@ class _InvoceDetails extends State<InvoceDetails> {
 
     if (result != null && result is String) {
       setState(() {
-        _referenceController.text = result;
+        _addProduct(context, result.toString());
       });
     }
   }
@@ -156,10 +156,7 @@ class _InvoceDetails extends State<InvoceDetails> {
     final List<Map<String, dynamic>> promoExist = [];
     if (result > 0) {
       promoExist.addAll(await PromocionesDao().fetchPromociones());
-      print(promoExist);
     }
-
-    String reference = _referenceController.text.trim();
     String quantityText = _quantityController.text.trim();
 
     String tipoProducto = data["Tipo"] ?? "S";
@@ -173,7 +170,7 @@ class _InvoceDetails extends State<InvoceDetails> {
     double totalCalculado = precio * cantidad;
 
     final nuevoProducto = Product(
-      reference: reference,
+      reference: data["Referencia"],
       description: data['Desc_Referencia'],
       price: precio,
       fairPrice: precio,
@@ -278,24 +275,26 @@ class _InvoceDetails extends State<InvoceDetails> {
 
   void _buildRowEspecial(dynamic config, dynamic data) async {
     idRows++;
-
-    String reference = _referenceController.text.trim();
     String quantityText = _quantityController.text.trim();
 
     int cantidad = int.tryParse(quantityText) ?? 1;
     double precio = double.tryParse(data['Precio'].toString()) ?? 0.0;
 
-    double descuentoFactor = 1 - (widget.invoiceDiscount / 100.0);
+    double descuentoFactor = 1 - (widget.invoiceDiscount / 100);
     double fairPrice = precio * descuentoFactor;
+
+    // calculamos el total de la factura de otra manera
     double totalCalculado = fairPrice * cantidad;
 
+    print("Total calculado: $totalCalculado");
+
     final nuevoProducto = Product(
-      reference: reference,
+      reference: data["Referencia"],
       description: data['Desc_Referencia'],
       price: precio,
       fairPrice: fairPrice,
       quantity: cantidad.toString(),
-      total: totalCalculado,
+      total: fairPrice * cantidad,
       tipo: 'S',
     );
 
@@ -315,390 +314,354 @@ class _InvoceDetails extends State<InvoceDetails> {
   }
 
   void calcularPromociones() async {
-    // 1. Traer promociones (aquí solo usamos si está vacía)
+    // reseteamos los precios antes de aplicar las promociones
+    for (final pro in products) {
+      pro.fairPrice = pro.price;
+      pro.total = pro.price * int.parse(pro.quantity);
+    }
+
+    // Verificamos si queda al menos un producto válido (tipo t, s, d, o)
+    final tieneProductoValido = products.any((producto) {
+      final tipo = producto.tipo?.toLowerCase();
+      return tipo == 'T' || tipo == 'S' || tipo == 'D' || tipo == 'Y';
+    });
+
+    if (!tieneProductoValido) {
+      invoiceDiscount = 0;
+    }
+
+    // traemos las promociones (si hay)
     final promocionesCantidad =
         await PromocionCantidadService().fetchPromocionCantidad();
 
-    // 2. Filtrar sólo productos tipo T y N
+    // filtramos los siguientes tipo de productos (T D Y N S)
     final List<Product> tipoT = products.where((p) => p.tipo == 'T').toList();
     final List<Product> tipoD = products.where((p) => p.tipo == 'D').toList();
     final List<Product> tipoY = products.where((p) => p.tipo == 'Y').toList();
     final List<Product> tipoN = products.where((p) => p.tipo == 'N').toList();
+    final List<Product> tipoS = products.where((p) => p.tipo == 'S').toList();
 
-    // Primero procesamos productos tipo N
-    for (final n in tipoN) {
-      final qty = int.tryParse(n.quantity) ?? 1;
-      final descuentoEspecial = n.porcentajeDescuento ?? 0;
-
-      if (descuentoEspecial > 0) {
-        final descuento = n.price * (1 - (descuentoEspecial / 100));
-        n.fairPrice = descuento;
-        n.total = descuento * qty;
-      } else {
-        n.fairPrice = n.price;
-        n.total = n.price * qty;
-      }
-    }
-
-    // Inicializamos todos los productos tipo T con su precio normal
-    // Esto es importante para "resetear" cualquier descuento previo
-    for (final t in tipoT) {
-      final qty = int.tryParse(t.quantity) ?? 1;
-      t.fairPrice = t.price;
-      t.total = t.price * qty;
-    }
-
-    for (final y in tipoY) {
-      final qty = int.tryParse(y.quantity) ?? 1;
-      y.fairPrice = y.price;
-      y.total = y.price * qty;
-    }
-
-    // 3. Si no hay promociones generales, arrancamos nuestras reglas
     if (promocionesCantidad.isEmpty) {
-      invoiceDiscount = 0;
+      // 3x2
+      if (tipoT.isNotEmpty) {
+        int numberOfDiscountedProducts = tipoT.length ~/ 3;
 
-      // Solo procesamos productos tipo T si hay suficientes para formar un grupo
-      if (tipoT.length >= 3) {
-        // Calculate how many complete groups of 3 we have
-        int completeGroups = tipoT.length ~/ 3;
-        List<Product> discountedProducts = [];
+        if (numberOfDiscountedProducts > 0) {
+          // Creamos una copia de la lista para ordenarla sin afectar el orden original
+          List<Product> sortedProducts = List.from(tipoT);
 
-        // Process each complete group of 3
-        for (int i = 0; i < completeGroups; i++) {
-          int startIndex = i * 3;
-          List<Product> group = tipoT.sublist(startIndex, startIndex + 3);
+          // Ordenamos los productos por precio (de menor a mayor)
+          sortedProducts.sort((a, b) => a.price.compareTo(b.price));
 
-          // Check if all products in the group have the same reference
-          bool sameReference = group.every(
-            (p) => p.reference == group[0].reference,
+          // Seleccionamos los productos más baratos (la mitad)
+          List<Product> cheapestProducts = sortedProducts.sublist(
+            0,
+            numberOfDiscountedProducts,
           );
 
-          Product productToDiscount;
-
-          if (sameReference) {
-            // If same reference, choose the last one
-            productToDiscount = group[2];
-          } else {
-            // If different references, find the cheapest one
-            productToDiscount = group.reduce(
-              (a, b) => a.price < b.price ? a : b,
-            );
+          // Aplicamos el descuento a los productos más baratos
+          for (Product product in products) {
+            if (cheapestProducts.any((p) => p == product)) {
+              // Este es uno de los productos más baratos, aplica descuento
+              product.fairPrice = 0; // Producto gratis
+              product.total = 0;
+            }
           }
-
-          // Add to our tracking list for debugging
-          discountedProducts.add(productToDiscount);
-
-          // Apply the discount
-          productToDiscount.fairPrice = 0;
-          productToDiscount.total = 0;
         }
       }
 
-      // solo procesamos productos tipo Y si hay suficientes para formar un grupo
-      if (tipoY.length >= 2) {
-        int completeGroupsY = tipoY.length ~/ 2;
-        List<Product> discountedProductsY = [];
+      // 2x1
+      if (tipoY.isNotEmpty) {
+        int numberOfDiscountedProducts = tipoY.length ~/ 2;
 
-        for (int i = 0; i < completeGroupsY; i++) {
-          int startIndex = i * 2;
-          List<Product> group = tipoY.sublist(startIndex, startIndex + 2);
+        if (numberOfDiscountedProducts > 0) {
+          // Creamos una copia de la lista para ordenarla sin afectar el orden original
+          List<Product> sortedProducts = List.from(tipoY);
 
-          // Para tipo Y siempre buscamos el más barato sin importar referencias
-          Product productToDiscount = group.reduce(
-            (a, b) => a.price < b.price ? a : b,
+          // Ordenamos los productos por precio (de menor a mayor)
+          sortedProducts.sort((a, b) => a.price.compareTo(b.price));
+
+          // Seleccionamos los productos más baratos (la mitad)
+          List<Product> cheapestProducts = sortedProducts.sublist(
+            0,
+            numberOfDiscountedProducts,
           );
 
-          discountedProductsY.add(productToDiscount);
-          productToDiscount.fairPrice = 0;
-          productToDiscount.total = 0;
+          // Aplicamos el descuento a los productos más baratos
+          for (Product product in products) {
+            if (cheapestProducts.any((p) => p == product)) {
+              // Este es uno de los productos más baratos, aplica descuento
+              product.fairPrice = 0; // Producto gratis
+              product.total = 0;
+            }
+          }
         }
       }
 
-      // Procesamos productos tipo D (grupos de 2 con 50% de descuento)
-      if (tipoD.length >= 2) {
-        int completeGroupsD = tipoD.length ~/ 2;
-        List<Product> discountedProductsD = [];
+      // 50%
+      if (tipoD.isNotEmpty) {
+        int numberOfDiscountedProducts = tipoD.length ~/ 2;
 
-        for (int i = 0; i < completeGroupsD; i++) {
-          int startIndex = i * 2;
-          List<Product> group = tipoD.sublist(startIndex, startIndex + 2);
+        if (numberOfDiscountedProducts > 0) {
+          // Creamos una copia de la lista para ordenarla sin afectar el orden original
+          List<Product> sortedProducts = List.from(tipoD);
 
-          // Para tipo D buscamos el más barato para aplicar 50% de descuento
-          Product productToDiscount = group.reduce(
-            (a, b) => a.price < b.price ? a : b,
+          // Ordenamos los productos por precio (de menor a mayor)
+          sortedProducts.sort((a, b) => a.price.compareTo(b.price));
+
+          // Seleccionamos los productos más baratos (la mitad)
+          List<Product> cheapestProducts = sortedProducts.sublist(
+            0,
+            numberOfDiscountedProducts,
           );
 
-          discountedProductsD.add(productToDiscount);
-
-          // Aplicamos 50% de descuento (no cero)
-          final qty = int.tryParse(productToDiscount.quantity) ?? 1;
-          productToDiscount.fairPrice =
-              productToDiscount.price * 0.5; // 50% del precio original
-          productToDiscount.total = productToDiscount.fairPrice * qty;
+          // Aplicamos el descuento a los productos más baratos
+          for (Product product in products) {
+            if (cheapestProducts.any((p) => p == product)) {
+              // Este es uno de los productos más baratos, aplica descuento
+              product.fairPrice =
+                  product.price * 0.5; // 50% del precio original
+              product.total = product.fairPrice * int.parse(product.quantity);
+            }
+          }
         }
       }
 
-      // 3.5 Reordenar para que los gratis queden al final (opcional)
+      // N (N) producto especial viene con un descuento (porcentajeDescuento)
+      if (tipoN.isNotEmpty) {
+        for (Product product in tipoN) {
+          final int? porcentajeDescuento = product.porcentajeDescuento;
+          if (porcentajeDescuento != null && porcentajeDescuento > 0) {
+            product.fairPrice =
+                product.price * (1 - (porcentajeDescuento / 100));
+            product.total = product.fairPrice * int.parse(product.quantity);
+          }
+        }
+      }
+
+      // pasamos los productos baratos al final
       products.sort((a, b) {
         if (a.fairPrice == 0 && b.fairPrice != 0) return 1;
         if (a.fairPrice != 0 && b.fairPrice == 0) return -1;
-        if (a.fairPrice < a.price && b.fairPrice == b.price) return 1;
+        if (a.fairPrice < a.price && b.fairPrice == a.price) return 1;
         if (a.fairPrice == a.price && b.fairPrice < b.price) return -1;
         return 0;
       });
+
+      // actualizamos el total final
+      totalFinal = products.fold<int>(
+        0,
+        (sum, item) => sum + (item.total > 0 ? item.total.toInt() : 0),
+      );
 
       setState(() {});
-      return;
     }
 
-    if (promocionesCantidad.isNotEmpty && products.isNotEmpty) {
-      print(promocionesCantidad);
-
-      // 1. Filtrar productos tipo T
-      final List<Product> tipoT = products.where((p) => p.tipo == 'T').toList();
-      final Set<Product> productosEnGruposT = {};
-
-      bool seFormaronGruposT = false;
-
-      // 2. Aplicar regla para productos tipo T en grupos de 3
-      if (tipoT.length >= 3) {
-        tipoT.sort((a, b) => a.fairPrice.compareTo(b.fairPrice));
-        int gruposCompletosT = tipoT.length ~/ 3;
-
-        if (gruposCompletosT > 0) {
-          seFormaronGruposT = true;
-
-          for (int i = 0; i < gruposCompletosT; i++) {
-            int startIndex = i * 3;
-
-            // Restaurar precios originales del grupo
-            for (int j = startIndex; j < startIndex + 3; j++) {
-              int index = products.indexWhere((p) => p == tipoT[j]);
-              if (index != -1) {
-                products[index].fairPrice = products[index].price;
-                productosEnGruposT.add(products[index]);
-              }
-            }
-
-            // Poner fairPrice del más barato en 0
-            int cheapestIndex = startIndex;
-            for (int j = startIndex + 1; j < startIndex + 3; j++) {
-              if (tipoT[j].fairPrice < tipoT[cheapestIndex].fairPrice) {
-                cheapestIndex = j;
-              }
-            }
-
-            int originalIndex = products.indexWhere(
-              (p) => p == tipoT[cheapestIndex],
-            );
-            if (originalIndex != -1) {
-              products[originalIndex].fairPrice = 0;
-            }
-          }
-        }
-      }
-
-      // 3. Filtrar productos tipo Y
-      final List<Product> tipoY = products.where((p) => p.tipo == 'Y').toList();
-      final Set<Product> productosEnGruposY = {};
-
-      bool seFormaronGruposY = false;
-
-      // 4. Aplicar regla para productos tipo Y en grupos de 2
-      if (tipoY.length >= 2) {
-        tipoY.sort((a, b) => a.fairPrice.compareTo(b.fairPrice));
-        int gruposCompletosY = tipoY.length ~/ 2;
-
-        if (gruposCompletosY > 0) {
-          seFormaronGruposY = true;
-
-          for (int i = 0; i < gruposCompletosY; i++) {
-            int startIndex = i * 2;
-
-            // Restaurar precios originales del grupo
-            for (int j = startIndex; j < startIndex + 2; j++) {
-              int index = products.indexWhere((p) => p == tipoY[j]);
-              if (index != -1) {
-                products[index].fairPrice = products[index].price;
-                productosEnGruposY.add(products[index]);
-              }
-            }
-
-            // Poner fairPrice del más barato en 0
-            int cheapestIndex = startIndex;
-            for (int j = startIndex + 1; j < startIndex + 2; j++) {
-              if (tipoY[j].fairPrice < tipoY[cheapestIndex].fairPrice) {
-                cheapestIndex = j;
-              }
-            }
-
-            int originalIndex = products.indexWhere(
-              (p) => p == tipoY[cheapestIndex],
-            );
-            if (originalIndex != -1) {
-              products[originalIndex].fairPrice = 0;
-            }
-          }
-        }
-      }
-
-      // 5. Filtrar productos tipo D
-      final List<Product> tipoD = products.where((p) => p.tipo == 'D').toList();
-      final Set<Product> productosEnGruposD = {};
-
-      bool seFormaronGruposD = false;
-
-      // 6. Aplicar regla para productos tipo D en grupos de 3
-      if (tipoD.length >= 3) {
-        tipoD.sort((a, b) => a.fairPrice.compareTo(b.fairPrice));
-        int gruposCompletosD = tipoD.length ~/ 3;
-
-        if (gruposCompletosD > 0) {
-          seFormaronGruposD = true;
-
-          for (int i = 0; i < gruposCompletosD; i++) {
-            int startIndex = i * 3;
-
-            // Restaurar precios originales del grupo
-            for (int j = startIndex; j < startIndex + 3; j++) {
-              int index = products.indexWhere((p) => p == tipoD[j]);
-              if (index != -1) {
-                products[index].fairPrice = products[index].price;
-                productosEnGruposD.add(products[index]);
-              }
-            }
-
-            // Poner fairPrice del más barato con un descuento del 50%
-            int cheapestIndex = startIndex;
-            for (int j = startIndex + 1; j < startIndex + 3; j++) {
-              if (tipoD[j].fairPrice < tipoD[cheapestIndex].fairPrice) {
-                cheapestIndex = j;
-              }
-            }
-
-            int originalIndex = products.indexWhere(
-              (p) => p == tipoD[cheapestIndex],
-            );
-            if (originalIndex != -1) {
-              // Aplicar descuento del 50%
-              products[originalIndex].fairPrice =
-                  products[originalIndex].price * 0.5;
-            }
-          }
-        }
-      }
-
-      // 7. Aplicar descuento por cantidad SOLO a productos que NO están en grupos tipo T, Y o D
-      final List<Map<String, dynamic>> promocionesOrdenadas =
-          List<Map<String, dynamic>>.from(promocionesCantidad);
-
-      // Ordenar las promociones según el rango de productos
-      promocionesOrdenadas.sort((a, b) {
-        int desdeA =
-            int.tryParse(
-              a['productos_desde']?.toString() ??
-                  a['Productos_Desde']?.toString() ??
-                  '0',
-            ) ??
-            0;
-
-        int desdeB =
-            int.tryParse(
-              b['productos_desde']?.toString() ??
-                  b['Productos_Desde']?.toString() ??
-                  '0',
-            ) ??
-            0;
-
-        return desdeB.compareTo(desdeA);
-      });
-
-      final productosSinGrupoT_Y_D =
-          products
-              .where(
-                (p) =>
-                    !productosEnGruposT.contains(p) &&
-                    !productosEnGruposY.contains(p) &&
-                    !productosEnGruposD.contains(p),
-              )
-              .toList();
-
-      Map<String, dynamic>? promocionAplicable;
-
-      // Buscar la promoción aplicable
-      for (var promocion in promocionesOrdenadas) {
-        int productoDesde =
-            int.tryParse(
-              promocion['productos_desde']?.toString() ??
-                  promocion['Productos_Desde']?.toString() ??
-                  '0',
-            ) ??
-            0;
-
-        int productoHasta =
-            int.tryParse(
-              promocion['productos_hasta']?.toString() ??
-                  promocion['Productos_Hasta']?.toString() ??
-                  '0',
-            ) ??
-            0;
-
-        // Validar si el número de productos está dentro del rango de "productos_desde" y "productos_hasta"
-        if (productosSinGrupoT_Y_D.length >= productoDesde &&
-            productosSinGrupoT_Y_D.length <= productoHasta) {
-          promocionAplicable = promocion;
-          break; // Si encontramos una promoción válida, salimos del bucle
-        }
-      }
-
-      // Si la promoción es válida, se aplica el descuento
-      if (promocionAplicable != null) {
-        final double porcentaje =
-            double.tryParse(
-              promocionAplicable['porcentaje_descuento']?.toString() ??
-                  promocionAplicable['Porcentaje_Descuento']?.toString() ??
-                  '0',
-            ) ??
-            0;
-
-        print(
-          'Aplicando descuento del $porcentaje% a productos fuera de los grupos tipo T, Y y D',
-        );
-
-        // Aplicar descuento a los productos fuera de los grupos tipo T, Y y D
-        for (var product in productosSinGrupoT_Y_D) {
-          double descuento = product.price * (porcentaje / 100);
-          product.fairPrice = product.price - descuento;
-        }
-
-        // Establecer el descuento de la factura (widget.invoiceDiscount)
-        invoiceDiscount = porcentaje.toInt();
-      } else {
-        // Si no hay promoción válida, dejar los precios originales
-        for (var product in productosSinGrupoT_Y_D) {
-          product.fairPrice = product.price; // Restaurar el precio original
-        }
-      }
-
-      // 8. Calcular total final para cada producto
+    if (promocionesCantidad.isNotEmpty) {
+      // Paso 1: Reiniciar precios de todos
       for (var product in products) {
-        double cantidad = double.tryParse(product.quantity) ?? 1.0;
-        product.total = product.fairPrice * cantidad;
+        product.fairPrice = product.price;
+        product.total =
+            product.price * (double.tryParse(product.quantity) ?? 1);
       }
 
-      // 3.5 Reordenar para que los gratis queden al final (opcional)
-      products.sort((a, b) {
-        if (a.fairPrice == 0 && b.fairPrice != 0) return 1;
-        if (a.fairPrice != 0 && b.fairPrice == 0) return -1;
-        if (a.fairPrice < a.price && b.fairPrice == b.price) return 1;
-        if (a.fairPrice == a.price && b.fairPrice < b.price) return -1;
-        return 0;
-      });
-    }
+      // Paso 2: Separar productos por tipo
+      List<Product> tipoT = products.where((p) => p.tipo == 'T').toList();
+      List<Product> tipoY = products.where((p) => p.tipo == 'Y').toList();
+      //List<Product> restoDescuentoCantidad =
+      //    products.where((p) => p.tipo != 'T' && p.tipo != 'N').toList();
 
-    // Si hay promociones generales (en tu servicio), las manejarías aquí...
-    setState(() {});
+      // Paso 3: Aplicar 3x2 a productos tipo T
+      List<Product> disponiblesT = List.from(tipoT);
+      List<Product> fueraDeGrupoT = [];
+
+      while (disponiblesT.length >= 3) {
+        // Tomar los dos primeros productos por orden
+        List<Product> grupo = disponiblesT.sublist(0, 2);
+
+        // Buscar el más barato desde el índice 2 en adelante (resto productos)
+        Product? masBaratoResto;
+        if (disponiblesT.length > 2) {
+          masBaratoResto = disponiblesT
+              .sublist(2)
+              .reduce((a, b) => a.price < b.price ? a : b);
+        }
+
+        // Agregar el más barato del resto para completar grupo de 3
+        if (masBaratoResto != null) {
+          grupo.add(masBaratoResto);
+        } else {
+          break; // No hay suficientes productos para formar grupo
+        }
+
+        // Determinar el más barato en el grupo
+        Product masBarato = grupo.reduce((a, b) => a.price < b.price ? a : b);
+
+        // Aplicar precios: más barato gratis, los otros con precio normal
+        for (var p in grupo) {
+          if (p == masBarato) {
+            p.fairPrice = 0;
+            p.total = 0;
+          } else {
+            p.fairPrice = p.price;
+            p.total = p.price * (double.tryParse(p.quantity) ?? 1);
+          }
+        }
+
+        // Remover los productos del grupo de disponiblesT
+        for (var p in grupo) {
+          disponiblesT.remove(p);
+        }
+      }
+
+      // Los tipo T que no entraron en grupo de 3x2
+      fueraDeGrupoT = disponiblesT;
+
+      // --------------------
+      // Ahora para tipo Y aplicar 2x1 (grupos de 2)
+      // --------------------
+
+      List<Product> disponiblesY = List.from(tipoY);
+      List<Product> fueraDeGrupoY = [];
+
+      while (disponiblesY.length >= 2) {
+        // Primer producto del listado
+        Product primero = disponiblesY[0];
+
+        // Buscar el más barato entre los demás productos (desde índice 1)
+        Product masBaratoResto = disponiblesY
+            .sublist(1)
+            .reduce((a, b) => a.price < b.price ? a : b);
+
+        List<Product> grupo = [primero, masBaratoResto];
+
+        // Determinar el más barato del grupo (puede ser masBaratoResto o primero)
+        Product masBarato = grupo.reduce((a, b) => a.price < b.price ? a : b);
+
+        // Aplicar precios
+        for (var p in grupo) {
+          if (p.reference == masBarato.reference) {
+            p.fairPrice = 0;
+            p.total = 0;
+          } else {
+            p.fairPrice = p.price;
+            p.total = p.price * (double.tryParse(p.quantity) ?? 1);
+          }
+        }
+
+        // Remover productos usados
+        disponiblesY.remove(primero);
+        disponiblesY.remove(masBaratoResto);
+      }
+
+      // Los tipo Y que no entraron en grupo de 2x1
+      fueraDeGrupoY = disponiblesY;
+
+      // --------------------
+      // Ahora para tipo D aplicar D  (grupos de 2)
+      // --------------------
+      List<Product> disponiblesD = List.from(tipoD);
+      List<Product> fueraDeGrupoD = [];
+
+      while (disponiblesD.length >= 2) {
+        // Primer producto del listado
+        Product primero = disponiblesD[0];
+
+        // Buscar el más barato entre los demás productos (desde índice 1)
+        Product masBaratoResto = disponiblesD
+            .sublist(1)
+            .reduce((a, b) => a.price < b.price ? a : b);
+
+        List<Product> grupo = [primero, masBaratoResto];
+
+        // Determinar el más barato del grupo (puede ser masBaratoResto o primero)
+        Product masBarato = grupo.reduce((a, b) => a.price < b.price ? a : b);
+
+        // Aplicar descuento 50% al más barato, el otro precio normal
+        for (var p in grupo) {
+          if (p.reference == masBarato.reference) {
+            p.fairPrice = p.price * 0.5; // 50% de descuento
+            p.total = p.fairPrice * (double.tryParse(p.quantity) ?? 1);
+          } else {
+            p.fairPrice = p.price;
+            p.total = p.price * (double.tryParse(p.quantity) ?? 1);
+          }
+        }
+
+        // Remover productos usados
+        disponiblesD.remove(primero);
+        disponiblesD.remove(masBaratoResto);
+      }
+
+      // Productos tipo D que quedaron fuera de grupos
+      fueraDeGrupoD = disponiblesD;
+
+      // Paso 4: Aplicar descuento por cantidad a:
+      // - tipo S
+      // - tipo D
+      // - tipo T que no entraron en 3x2
+      // - tipo Y que no entraron en 2x1
+      //
+      List<Product> productosParaDescuentoCantidad = [
+        ...fueraDeGrupoT.where((p) => p.tipo != 'N'),
+        ...fueraDeGrupoY.where((p) => p.tipo != 'N'),
+        ...fueraDeGrupoD.where((p) => p.tipo != 'N'),
+        ...tipoS.where((p) => p.tipo != 'N'),
+      ];
+
+      int cantidadTotal = productosParaDescuentoCantidad.fold<int>(
+        0,
+        (sum, p) => sum + (int.tryParse(p.quantity) ?? 0),
+      );
+
+      final promocionesAplicables =
+          promocionesCantidad.where((promo) {
+            int desde = promo['Productos_Desde'];
+            int hasta = promo['Productos_Hasta'];
+            return cantidadTotal >= desde && cantidadTotal <= hasta;
+          }).toList();
+
+      if (promocionesAplicables.isNotEmpty) {
+        promocionesAplicables.sort(
+          (a, b) => (b['Porcentaje_Descuento'] as int).compareTo(
+            a['Porcentaje_Descuento'] as int,
+          ),
+        );
+        int descuento = promocionesAplicables.first['Porcentaje_Descuento'];
+        invoiceDiscount = descuento;
+
+        for (var p in productosParaDescuentoCantidad) {
+          double cantidad = double.tryParse(p.quantity) ?? 1;
+          p.fairPrice = p.price * (1 - descuento / 100);
+          p.total = p.fairPrice * cantidad;
+        }
+      }
+
+      // N (N) producto especial viene con un descuento (porcentajeDescuento)
+      if (tipoN.isNotEmpty) {
+        for (Product product in tipoN) {
+          final int? porcentajeDescuento = product.porcentajeDescuento;
+          if (porcentajeDescuento != null && porcentajeDescuento > 0) {
+            product.fairPrice =
+                product.price * (1 - (porcentajeDescuento / 100));
+            product.total = product.fairPrice * int.parse(product.quantity);
+          }
+        }
+      }
+
+      // Paso 5: Reordenar: primero los con precio, luego los gratis
+      List<Product> conPrecio = products.where((p) => p.fairPrice > 0).toList();
+      List<Product> gratis = products.where((p) => p.fairPrice == 0).toList();
+
+      products
+        ..clear()
+        ..addAll([...conPrecio, ...gratis]);
+
+      // Paso 6: Calcular total final
+      totalFinal = products.fold<double>(0, (sum, item) => sum + item.total);
+
+      setState(() {});
+    }
   }
 
   //funcion por si hay promocion 50% y 3x2
@@ -817,11 +780,14 @@ class _InvoceDetails extends State<InvoceDetails> {
   void _clearProducts() {
     setState(() {
       products.clear();
+      invoiceDiscount = 0;
     });
   }
 
+  // funcion para elm
+
   // funcion para mostrar los metodos de pago disponibles
-  void _showPaymentModal(BuildContext context, int total) {
+  void _showPaymentModal(BuildContext context) {
     if (products.isEmpty) {
       showAlert(context, "Warning", "No ha agregado ningún producto");
       return;
@@ -835,16 +801,18 @@ class _InvoceDetails extends State<InvoceDetails> {
       ),
       builder:
           (context) => PaymentModal(
-            total: total,
+            total: products.fold<int>(0, (sum, item) {
+              int itemTotal = item.total > 0 ? item.total.round() : 0;
+              return sum + itemTotal;
+            }),
             typeOfInvoice: widget.typeFactura,
-            productsData: products, // Pasar la lista de productos
+            productsData: products,
           ),
     );
   }
 
   // funcion para añadir un producto nuevo
-  void _addProduct(BuildContext context) async {
-    final refText = _referenceController.text.trim();
+  void _addProduct(BuildContext context, refText) async {
     final quantityText = _quantityController.text.trim();
 
     if (refText.isEmpty || quantityText.isEmpty) {
@@ -867,7 +835,14 @@ class _InvoceDetails extends State<InvoceDetails> {
       quantity = 1;
     }
 
-    if (widget.typeFactura == '1') {
+    // verificamos con el provider el tipo de factura
+    // si es factura normal o especial
+    TypeFacturaProvider typeFacturaProvider = Provider.of<TypeFacturaProvider>(
+      context,
+      listen: false,
+    );
+
+    if (typeFacturaProvider.tipoFactura == 1) {
       try {
         final productData = await _refLibroServices.fetchProduct(refText);
 
@@ -879,6 +854,8 @@ class _InvoceDetails extends State<InvoceDetails> {
               backgroundColor: Colors.red,
             ),
           );
+
+          _referenceController.text = refText;
           return;
         }
 
@@ -906,6 +883,7 @@ class _InvoceDetails extends State<InvoceDetails> {
         }
       }
     } else {
+      print("Factura especial");
       try {
         final productData = await _refLibroServicesEspecial.fetchProduct(
           refText,
@@ -1107,7 +1085,6 @@ class _InvoceDetails extends State<InvoceDetails> {
       );
     }
 
-    // obtenemos la factura interna del usuario y le sumamos 1
     int? invoiceNumber =
         usuarios.isNotEmpty
             ? int.tryParse(usuarios.first['facturaAlternaUsuario'].toString())
@@ -1145,14 +1122,6 @@ class _InvoceDetails extends State<InvoceDetails> {
                             TextSpan(
                               text: "$promoText ",
                               style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            const TextSpan(text: "("),
-                            TextSpan(
-                              text: formattedDate,
-                              style: const TextStyle(
-                                color: Colors.red,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -1323,7 +1292,22 @@ class _InvoceDetails extends State<InvoceDetails> {
                                                 onPressed: () {
                                                   setState(() {
                                                     products.remove(product);
-                                                    calcularPromociones(); // <- Aquí actualizas la promo después de eliminar
+
+                                                    // miramos el tipo de factura
+                                                    TypeFacturaProvider
+                                                    typeFacturaProvider =
+                                                        Provider.of<
+                                                          TypeFacturaProvider
+                                                        >(
+                                                          context,
+                                                          listen: false,
+                                                        );
+
+                                                    if (typeFacturaProvider
+                                                            .tipoFactura ==
+                                                        1) {
+                                                      calcularPromociones();
+                                                    }
                                                   });
                                                 },
                                               ),
@@ -1444,24 +1428,7 @@ class _InvoceDetails extends State<InvoceDetails> {
                               ),
                               prefixIcon: Icon(Icons.numbers),
                             ),
-                          ),
-                          const SizedBox(
-                            height: 16,
                           ), // Espacio entre los campos
-
-                          TextField(
-                            controller: _quantityController,
-                            keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Cantidad',
-                              border: OutlineInputBorder(),
-                              contentPadding: EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 12,
-                              ),
-                              prefixIcon: Icon(Icons.numbers),
-                            ),
-                          ),
                           const SizedBox(
                             height: 16,
                           ), // Espacio entre el campo y el botón
@@ -1470,8 +1437,17 @@ class _InvoceDetails extends State<InvoceDetails> {
                             children: [
                               SizedBox(
                                 width: double.infinity,
-                                child: OutlinedButton(
-                                  onPressed: () => _addProduct(context),
+                                child: OutlinedButton.icon(
+                                  onPressed:
+                                      () => _addProduct(
+                                        context,
+                                        _referenceController.text,
+                                      ),
+                                  icon: const Icon(
+                                    Icons.qr_code_scanner,
+                                    size: 24,
+                                  ),
+                                  label: const Text("Grabar"),
                                   style: OutlinedButton.styleFrom(
                                     foregroundColor: const Color(0xFF4CAF50),
                                     side: const BorderSide(
@@ -1484,7 +1460,30 @@ class _InvoceDetails extends State<InvoceDetails> {
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                   ),
-                                  child: const Text("Grabar"),
+                                ),
+                              ),
+                              const SizedBox(height: 10), //
+                              SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: () => _scanEAN13(),
+                                  icon: const Icon(
+                                    Icons.qr_code_scanner,
+                                    size: 24,
+                                  ),
+                                  label: const Text("Scanear EAN"),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: const Color(0xFF4CAF50),
+                                    side: const BorderSide(
+                                      color: Color(0xFF4CAF50),
+                                    ),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
                                 ),
                               ),
                               const SizedBox(
@@ -1493,19 +1492,7 @@ class _InvoceDetails extends State<InvoceDetails> {
                               SizedBox(
                                 width: double.infinity,
                                 child: ElevatedButton(
-                                  onPressed:
-                                      () => _showPaymentModal(
-                                        context,
-                                        // Actualizamos el total final
-                                        totalFinal = products.fold<int>(
-                                          0,
-                                          (sum, item) =>
-                                              sum +
-                                              (item.total > 0
-                                                  ? item.total.toInt()
-                                                  : 0),
-                                        ),
-                                      ),
+                                  onPressed: () => _showPaymentModal(context),
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.green,
                                     foregroundColor: Colors.white,
@@ -1529,6 +1516,9 @@ class _InvoceDetails extends State<InvoceDetails> {
                                           () => showAddProductDialog(
                                             context,
                                             _referenceController,
+                                            TextEditingController(
+                                              text: _referenceController.text,
+                                            ),
                                           ),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Colors.purple,
@@ -1582,13 +1572,6 @@ class _InvoceDetails extends State<InvoceDetails> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          FloatingActionButton(
-            heroTag: 'eanReader',
-            onPressed: _scanEAN13, // Enfoca el TextField para escanear
-            shape: const CircleBorder(),
-            tooltip: 'Leer EAN-13',
-            child: const Icon(Icons.qr_code),
-          ),
           const SizedBox(height: 12),
           FloatingActionButton(
             heroTag: 'syncButton',

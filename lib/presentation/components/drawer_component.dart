@@ -1,4 +1,5 @@
 import 'package:app_planeta/infrastructure/local_db/dao/index.dart';
+import 'package:app_planeta/presentation/screens/downloads/downloads.dart';
 import 'package:app_planeta/presentation/screens/facturacion_especial/facturacion_especial.dart';
 import 'package:app_planeta/presentation/screens/home/home_screen.dart';
 import 'package:app_planeta/presentation/screens/login/login_screen.dart';
@@ -126,6 +127,23 @@ class _DrawerComponentState extends State<DrawerComponent> {
                           settings: const RouteSettings(
                             name: 'sube_datos_nube',
                           ),
+                        ),
+                      );
+                    },
+                  ),
+
+                  ListTile(
+                    leading: const Icon(Icons.download),
+                    title: const Text('Preferencias descarga'),
+                    selected:
+                        ModalRoute.of(context)?.settings.name == 'downloads',
+                    selectedTileColor: Colors.grey[300],
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => DescargaScreen(),
+                          settings: const RouteSettings(name: 'downloads'),
                         ),
                       );
                     },
