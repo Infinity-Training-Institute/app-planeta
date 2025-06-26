@@ -155,5 +155,6 @@ class McabfaModel {
     "mstand": mstand,
     "mcomfiar": 0,
     "mcomfiar_credito": 0,
+    "mnube": mnube,
   };
 }

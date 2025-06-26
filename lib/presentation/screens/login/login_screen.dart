@@ -1,5 +1,6 @@
+import 'package:another_flushbar/flushbar.dart';
 import 'package:app_planeta/infrastructure/local_db/app_database.dart';
-import 'package:app_planeta/infrastructure/local_db/dao/index.dart';
+import 'package:app_planeta/infrastructure/local_db/dao/datos_mcabfa_dao.dart';
 import 'package:app_planeta/presentation/screens/sube_datos_nube/sube_datos_nube.dart';
 import 'package:app_planeta/providers/user_provider.dart';
 import 'package:flutter/material.dart';
@@ -22,10 +23,20 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   List<Map<String, dynamic>> usuarios = [];
+  int nFacturasPendientes = 0;
 
   @override
   void initState() {
     super.initState();
+    _getPendingInvoices();
+  }
+
+  Future<void> _getPendingInvoices() async {
+    int count = await DatosMcabfaDao().getCountMcabfa();
+    if (!mounted) return;
+    setState(() {
+      nFacturasPendientes = count;
+    });
   }
 
   void _submitLogin(BuildContext context) async {
@@ -40,8 +51,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!context.mounted) return; // Verifica si el contexto sigue disponible
       await authProvider.login(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
+        _emailController.text.trim().toLowerCase(),
+        _passwordController.text.trim().toLowerCase(),
         context,
       );
 
@@ -88,9 +99,15 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
       } else {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(authProvider.message)));
+        Flushbar(
+          message: authProvider.message,
+          duration: const Duration(seconds: 3),
+          flushbarPosition: FlushbarPosition.TOP, // 👈 Esto lo pone arriba
+          margin: const EdgeInsets.all(8),
+          borderRadius: BorderRadius.circular(8),
+        ).show(context);
+
+        _passwordController.clear();
       }
     }
   }
@@ -103,6 +120,8 @@ class _LoginScreenState extends State<LoginScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
+      resizeToAvoidBottomInset:
+          false, // <-- Desactiva el push-up al abrir teclado
       body: Stack(
         children: [
           // Fondo con degradado
@@ -220,6 +239,43 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             ),
           ),
+          if (nFacturasPendientes > 0) ...[
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(230), // 0.9 * 255 ≈ 230
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withAlpha(26), // 0.1 * 255 ≈ 26
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Text(
+                    nFacturasPendientes == 1
+                        ? 'Tienes $nFacturasPendientes factura pendiente por subir al servidor'
+                        : 'Tienes $nFacturasPendientes facturas pendientes por subir al servidor',
+                    style: GoogleFonts.poppins(
+                      color: Colors.black87,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );

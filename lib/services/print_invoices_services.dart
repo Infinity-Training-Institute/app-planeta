@@ -7,6 +7,7 @@ import 'package:app_planeta/infrastructure/local_db/models/datos_cliente_model.d
 import 'package:app_planeta/infrastructure/local_db/models/mcabfa_model.dart';
 import 'package:app_planeta/infrastructure/local_db/models/mlinfa_model.dart';
 import 'package:app_planeta/presentation/components/invoce_details.dart';
+import 'package:app_planeta/providers/type_factura_provider.dart';
 import 'package:app_planeta/providers/user_provider.dart';
 import 'package:app_planeta/services/ref_libro_especial.dart';
 import 'package:app_planeta/utils/create_cufe.dart';
@@ -27,8 +28,13 @@ class InvoiceService with ChangeNotifier {
     String? tipoFacturacion,
     int diference,
   ) async {
+    // recuperamos el tipo de factura
+    final tipoFacturacion = Provider.of<TypeFacturaProvider>(
+      context,
+      listen: false,
+    );
+
     final pdf = pw.Document();
-    final String tipoFactura;
     final userProvider = Provider.of<UserProvider>(context, listen: false);
 
     // obtenemos los datos necesarios para la factura
@@ -41,6 +47,8 @@ class InvoiceService with ChangeNotifier {
     final empresa = datosEmpresas.isNotEmpty ? datosEmpresas.first : null;
     final caja = datosCaja.isNotEmpty ? datosCaja.first : null;
     final cliente = datosCliente.isNotEmpty ? datosCliente.first : null;
+
+    print(caja?.numeroCaja);
 
     // === Aquí generamos el mapa de métodos de pago ===
     final Map<String, int> paymentValues = {
@@ -76,18 +84,18 @@ class InvoiceService with ChangeNotifier {
     }
 
     String getPaymentAbbreviation(Map<String, int> paymentValues) {
-      final active =
-          paymentValues.entries
-              .where((e) => e.value > 0)
-              .map((e) => e.key)
-              .toList();
-      if (active.length > 1) return 'M';
+      final methods = paymentValues.keys.toList();
+
+      if (methods.isEmpty) return '';
+
+      if (methods.length > 1) return 'M';
+
       return {
             'Efectivo': 'E',
             'Tarjeta': 'T',
             'Bono': 'B',
             'QR Banco': 'C',
-          }[active.first] ??
+          }[methods.first] ??
           '';
     }
 
@@ -114,12 +122,6 @@ class InvoiceService with ChangeNotifier {
       'CUFE': cufeData['cufe'] ?? '',
       'QRCode': cufeData['linkVerificacionQr'] ?? '',
     });
-
-    if (tipoFacturacion == '1') {
-      tipoFactura = "N";
-    } else {
-      tipoFactura = "E";
-    }
 
     pdf.addPage(
       pw.Page(
@@ -292,11 +294,9 @@ class InvoiceService with ChangeNotifier {
                       pw.Text(CurrencyFormatter.formatCOP(diference)),
                     ],
                   ),
-
-                  // TODO: PONER EL CAJERO
                   pw.SizedBox(height: 10),
                   pw.Text(
-                    'Cajero: ${users?.nickUsuario} - Consecutivo ${users?.facturaAlternaUsuario} - ${users?.cajaUsuario}',
+                    'Cajero: ${users?.nickUsuario} - Consecutivo ${users!.facturaAlternaUsuario + 1} - ${users.cajaUsuario}',
                   ),
 
                   if (payments.length > 1) ...[
@@ -367,7 +367,7 @@ class InvoiceService with ChangeNotifier {
                     textAlign: pw.TextAlign.center,
                   ),
                   pw.Text(
-                    'VIGENCIA: 24 MESES, PREFIJO ${caja?.numeroCaja}, AUTORIZA DESDE ${caja?.facturaInicio} AL ${caja?.facturaActual}',
+                    'VIGENCIA: 24 MESES, PREFIJO ${caja?.numeroCaja}, AUTORIZA DESDE ${caja?.facturaInicio} AL ${caja?.facturaFinal}',
                     textAlign: pw.TextAlign.center,
                   ),
                   pw.SizedBox(height: 5),
@@ -411,7 +411,37 @@ class InvoiceService with ChangeNotifier {
                       textAlign: pw.TextAlign.center,
                     ),
                   ),
-                  pw.SizedBox(height: 100),
+                  pw.SizedBox(height: 10),
+                  pw.Center(
+                    child: pw.Column(
+                      mainAxisSize: pw.MainAxisSize.min,
+                      children: [
+                        pw.Text(
+                          'A',
+                          style: pw.TextStyle(
+                            fontSize: 15,
+                            color: PdfColors.white,
+                          ),
+                        ),
+                        pw.SizedBox(height: 50),
+                        pw.Text(
+                          'B',
+                          style: pw.TextStyle(
+                            fontSize: 15,
+                            color: PdfColors.white,
+                          ),
+                        ),
+                        pw.SizedBox(height: 50),
+                        pw.Text(
+                          'C',
+                          style: pw.TextStyle(
+                            fontSize: 15,
+                            color: PdfColors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -422,34 +452,45 @@ class InvoiceService with ChangeNotifier {
 
     double totalDiscount = 0;
     double totalPrice = 0;
-    //double totalFairPrice = 0;
-
     double maxDiscountPercent = 0;
 
+    /**
+      * Función para calcular el descuento entre el precio normal y el precio de feria
+      * Retorna el porcentaje de descuento y el total de descuento
+    */
     for (var product in products) {
       final price = double.parse(product.price.toString());
       final fairPrice = double.parse(product.fairPrice.toString());
-      final quantity = int.parse(product.quantity.toString());
+      final quantity = double.parse(product.quantity.toString());
 
-      totalDiscount += (price - fairPrice) * quantity;
-      totalPrice += price * quantity;
-      // totalFairPrice += fairPrice * quantity;
+      // Verificar si fairPrice es válido (no es 0)
+      if (fairPrice >= 0) {
+        // Calcular el descuento
+        final discount = price - fairPrice;
+        totalDiscount += discount * quantity;
+        totalPrice += price * quantity;
 
-      if (price > 0) {
-        final discountPercent = ((price - fairPrice) / price) * 100;
-
-        if (discountPercent > maxDiscountPercent) {
-          maxDiscountPercent = discountPercent;
+        // Calcular el porcentaje de descuento solo si hay un descuento real
+        if (price > 0 && fairPrice < price) {
+          final discountPercent = (discount / price) * 100;
+          if (discountPercent > maxDiscountPercent) {
+            maxDiscountPercent = discountPercent;
+          }
         }
       }
     }
 
-    final mcpode = maxDiscountPercent.round();
-    final mcvade = totalDiscount;
+    // Calcular el porcentaje promedio de descuento global basado en los totales
+    double averageDiscountPercent = 0;
+    if (totalPrice > 0) {
+      averageDiscountPercent = (totalDiscount / totalPrice) * 100;
+    }
 
-    print(mcvade);
-    final mcvabr = totalPrice;
-    // final mcvane = totalFairPrice;
+    final mcpode =
+        averageDiscountPercent.round(); // Porcentaje promedio de descuento
+    final mcvade = totalDiscount; // Valor total de descuento
+    final mcvabr =
+        totalPrice; // Monto total sin descuento (precio normal total)
 
     final bonoList = payments.where((p) => p.method == 'Bono').toList();
     dynamic bonoValue; // Valor unitario del bono
@@ -478,13 +519,16 @@ class InvoiceService with ChangeNotifier {
       McabfaModel(
         mcnufa: int.tryParse(caja?.facturaActual ?? '') ?? 0,
         mcnuca: (caja?.numeroCaja.toString() ?? '0'),
-        mccecl: int.tryParse(cliente?.clcecl ?? '0') ?? 0,
+        mccecl:
+            clientes.isNotEmpty
+                ? int.tryParse(clientes.first.clcecl) ?? 222222222222
+                : 222222222222,
         mcfefa: int.parse(DateFormat('yyyyMMdd').format(DateTime.now())),
         mchora: DateFormat('hh:mm:ss').format(DateTime.now()),
         mcfopa: getPaymentAbbreviation(paymentValues),
         mcpode: mcpode,
         mcvade: mcvade.toInt(),
-        mctifa: tipoFactura,
+        mctifa: tipoFacturacion.tipoFactura == 1 ? 'N' : 'E',
         mcvabr: mcvabr.toInt(),
         mcvane: total,
         mcesta: "",
@@ -542,7 +586,7 @@ class InvoiceService with ChangeNotifier {
           mlcant: int.parse(products[i].quantity),
           mlesta: tipoLibro,
           mlestao: obsLinfa,
-          mlfefa: DateTime.now().millisecondsSinceEpoch,
+          mlfefa: int.parse(DateFormat('yyyyMMdd').format(DateTime.now())),
           mlestf: '',
           mlusua: users.nickUsuario,
           mlnufi: users.facturaAlternaUsuario,

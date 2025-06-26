@@ -7,6 +7,8 @@ class DatosCajaModel {
   final String facturaActual;
   final String nickUsuario;
   final String claveTecnica;
+  final String facturaFinal;
+  final int? datosNube;
 
   DatosCajaModel({
     this.codCaja,
@@ -17,6 +19,8 @@ class DatosCajaModel {
     required this.facturaActual,
     required this.nickUsuario,
     required this.claveTecnica,
+    required this.facturaFinal,
+    this.datosNube,
   });
 
   // Convertir un objeto a un mapa
@@ -30,6 +34,8 @@ class DatosCajaModel {
       'Factura_Actual': facturaActual,
       'Nick_Usuario': nickUsuario,
       'Clave_Tecnica': claveTecnica,
+      'Factura_Final': facturaFinal,
+      'Datos_Nube': datosNube,
     };
   }
 
@@ -44,6 +50,8 @@ class DatosCajaModel {
       facturaActual: map['Factura_Actual'] ?? '',
       nickUsuario: map['Nick_Usuario'] ?? '',
       claveTecnica: map['Clave_Tecnica'] ?? '',
+      facturaFinal: map['Factura_Final'] ?? '',
+      datosNube: map['Datos_Nube'] as int?,
     );
   }
 }

@@ -10,3 +10,14 @@ class UserProvider with ChangeNotifier {
     notifyListeners();
   }
 }
+
+class StandProvider with ChangeNotifier {
+  String _stand = '';
+
+  String get stand => _stand;
+
+  void setStand(String value) {
+    _stand = value;
+    notifyListeners();
+  }
+}

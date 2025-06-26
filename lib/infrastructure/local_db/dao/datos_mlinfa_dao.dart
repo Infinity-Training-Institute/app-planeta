@@ -51,6 +51,37 @@ class DatosMlinfaDao {
     });
   }
 
+  // funcion para obtener los registros donde el mnube sea 0
+  Future<List<MlinfaModel>> getMlinfaByMnube() async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'mlinfa',
+      where: 'mnube = ?',
+      whereArgs: [0],
+    );
+
+    return List.generate(maps.length, (i) {
+      return MlinfaModel(
+        mlnufc: maps[i]["mlnufc"],
+        mlnuca: maps[i]["mlnuca"],
+        mlcdpr: maps[i]["mlcdpr"],
+        mlnmpr: maps[i]["mlnmpr"],
+        mlpvpr: maps[i]["mlpvpr"],
+        mlpvne: maps[i]["mlpvne"],
+        mlcant: maps[i]["mlcant"],
+        mlesta: maps[i]["mlesta"],
+        mlestao: maps[i]["mlestao"],
+        mlfefa: maps[i]["mlfefa"],
+        mlestf: maps[i]["mlestf"],
+        mlusua: maps[i]["mlusua"],
+        mlnufi: maps[i]["mlnufi"],
+        mlcaja: maps[i]["mlcaja"],
+        mstand: maps[i]["mstand"],
+        mnube: maps[i]["mnube"],
+      );
+    });
+  }
+
   // funcion para un count donde el mnube sea 0
   Future<int> getCountMlinfa() async {
     final db = await AppDatabase.database;

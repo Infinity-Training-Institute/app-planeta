@@ -1,7 +1,9 @@
 import 'package:app_planeta/infrastructure/local_db/dao/index.dart';
 import 'package:app_planeta/presentation/screens/sube_datos_nube/sube_datos_nube.dart';
 import 'package:app_planeta/providers/syncronized_data.dart';
+import 'package:app_planeta/providers/type_factura_provider.dart';
 import 'package:app_planeta/providers/user_provider.dart';
+import 'package:app_planeta/services/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -15,9 +17,9 @@ import 'package:permission_handler/permission_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   // Solicitar permisos necesarios al iniciar la app
   await requestPermissions();
+  await SharedPreferencesService().init();
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -34,6 +36,8 @@ void main() async {
         ChangeNotifierProvider(create: (_) => SyncronizedData()),
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => StandProvider()),
+        ChangeNotifierProvider(create: (_) => TypeFacturaProvider()),
         ChangeNotifierProvider(create: (_) => ConnectivityProvider()),
       ],
       child: const MyApp(),
@@ -70,7 +74,7 @@ class MyApp extends StatelessWidget {
     final isAuthenticated = context.watch<AuthProvider>().isAuthenticated;
 
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
+      debugShowCheckedModeBanner: true,
       theme: ThemeData(useMaterial3: true, colorSchemeSeed: Colors.blue),
       home: Stack(
         children: [
@@ -91,7 +95,7 @@ class ConnectionWrapper extends StatelessWidget {
 
     if (usuario != null) {
       final tipo = usuario.tipoUsuario;
-      return tipo ;
+      return tipo;
     }
     return null;
   }
@@ -104,6 +108,8 @@ class ConnectionWrapper extends StatelessWidget {
       future: _getTipoUsuario(context), // Aquí se pasa el context
       builder: (context, snapshot) {
         final tipoUsuario = snapshot.data;
+
+        print("tipoUsuario: $tipoUsuario");
 
         if (!authProvider.isAuthenticated) {
           return const LoginScreen();

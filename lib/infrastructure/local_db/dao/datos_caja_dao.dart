@@ -15,6 +15,8 @@ class DatosCajaDao {
       'Factura_Actual': caja.facturaActual,
       'Nick_Usuario': caja.nickUsuario,
       'Clave_Tecnica': caja.claveTecnica,
+      'Factura_Final': caja.facturaFinal,
+      'Datos_Nube': caja.datosNube,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
@@ -32,6 +34,8 @@ class DatosCajaDao {
         facturaActual: maps[i]['Factura_Actual'].toString(),
         nickUsuario: maps[i]['Nick_Usuario'],
         claveTecnica: maps[i]['Clave_Tecnica'],
+        facturaFinal: maps[i]['Factura_Final'].toString(),
+        datosNube: maps[i]['Datos_Nube'],
       );
     });
   }

@@ -100,8 +100,11 @@ class PaymentModalState extends State<PaymentModal> {
 
     if (['Tarjeta', 'QR Banco'].contains(_selectedPaymentMethod)) {
       String cardType = _selectedCardType ?? '';
+      String cardType2 = _selectedCardType2 ?? '';
 
-      if (['Tarjeta'].contains(_selectedPaymentMethod) && cardType.isEmpty) {
+      if (['Tarjeta'].contains(_selectedPaymentMethod) &&
+          cardType.isEmpty &&
+          cardType2.isEmpty) {
         showAlert(context, 'Error', 'Seleccione el tipo de tarjeta');
         return;
       }
@@ -112,9 +115,29 @@ class PaymentModalState extends State<PaymentModal> {
         return;
       }
 
+      if (['QR Banco'].contains(_selectedPaymentMethod) &&
+              _phoneNumberController.text.length < 10) {
+        showAlert(
+          context,
+          'Error',
+          'El número de celular debe tener al menos 10 dígitos.',
+        );
+        return;
+      }
+
       String authNumber = _authNumberCard.text.trim();
       if (['Tarjeta'].contains(_selectedPaymentMethod) && authNumber.isEmpty) {
         showAlert(context, 'Error', 'Ingrese el número de autorización');
+        return;
+      }
+
+      if (['Tarjeta'].contains(_selectedPaymentMethod) &&
+              authNumber.length < 6) {
+        showAlert(
+          context,
+          'Error',
+          'El número de autorización debe tener al menos 6 caracteres.',
+        );
         return;
       }
 
@@ -195,7 +218,7 @@ class PaymentModalState extends State<PaymentModal> {
         return;
       }
 
-      final totalPago =
+      int totalPago =
           cashAmount + qrAmount + cardAmount + (bonoValue * bonoCount);
 
       if (totalPago < totalAmount) {
@@ -221,6 +244,19 @@ class PaymentModalState extends State<PaymentModal> {
 
       if (cashAmount > 0) {
         payments.add(PaymentEntry(method: 'Efectivo', amount: cashAmount));
+      }
+
+      int cambio = totalPago - totalAmount;
+
+      if (cambio > 0) {
+        if (cashAmount < cambio) {
+          showAlert(
+            context,
+            'Error',
+            'El cambio es mayor al pago en efectivo. El cambio solo puede darse si el efectivo cubre el excedente.',
+          );
+          return;
+        }
       }
 
       if (cardAmount > 0) {
@@ -312,6 +348,14 @@ class PaymentModalState extends State<PaymentModal> {
                 setState(() {
                   _selectedPaymentMethod = value!;
                   _selectedCardType = null;
+                  _amountCardController.clear();
+                  _amountQrController.clear();
+                  _bonoValueController.clear();
+                  _bonoQuantityController.clear();
+                  _phoneNumberController.clear();
+                  _selectedCardType2 = null;
+                  _authNumberCard.clear();
+                  _amountMoneyController.clear();
                 });
               },
               decoration: const InputDecoration(
@@ -403,6 +447,7 @@ class PaymentModalState extends State<PaymentModal> {
               TextField(
                 controller: _authNumberCard,
                 keyboardType: TextInputType.text,
+                maxLength: 13,
                 decoration: const InputDecoration(
                   labelText: 'Numero De Autorización',
                   border: OutlineInputBorder(),
@@ -415,6 +460,7 @@ class PaymentModalState extends State<PaymentModal> {
               const SizedBox(height: 16),
               TextField(
                 controller: _phoneNumberController,
+                maxLength: 10,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Numero de celular',
@@ -568,8 +614,8 @@ class PaymentModalState extends State<PaymentModal> {
 void showAddProductDialog(
   BuildContext context,
   TextEditingController referenceController,
+  TextEditingController barcodeController,
 ) {
-  final barcodeController = TextEditingController();
   final nameController = TextEditingController();
   final priceController = TextEditingController();
   final referenciaController = TextEditingController(text: "9999999");
@@ -590,14 +636,6 @@ void showAddProductDialog(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(
-                readOnly: true,
-                decoration: InputDecoration(
-                  labelText: 'Referencia',
-                  border: OutlineInputBorder(),
-                ),
-                controller: referenciaController,
-              ),
               SizedBox(height: 12),
               TextField(
                 controller: barcodeController,

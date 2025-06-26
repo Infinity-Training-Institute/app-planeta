@@ -65,6 +65,18 @@ class UserDao {
     return null;
   }
 
+  // metodo para revisar si el usuario existe
+  Future<bool> userExists(String usuario) async {
+    final db = await AppDatabase.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'Usuarios',
+      where: 'Nick_Usuario = ?',
+      whereArgs: [usuario],
+    );
+
+    return maps.isNotEmpty;
+  }
+
   Future<int?> getFacturaAlternaUsuario(String usuario) async {
     final db = await AppDatabase.database;
 
@@ -74,6 +86,8 @@ class UserDao {
       where: 'Nick_Usuario = ?',
       whereArgs: [usuario],
     );
+
+    print('Factura Alterna Usuario: $maps');
 
     if (maps.isNotEmpty) {
       return maps.first['Factura_Alterna_Usuario'] as int?;
@@ -87,11 +101,25 @@ class UserDao {
     int facturaAlternaUsuario,
   ) async {
     final db = await AppDatabase.database;
-    await db.update(
+
+    print('[LOG] Iniciando actualización para el usuario: $usuario');
+    print(
+      '[LOG] Nuevo valor de Factura_Alterna_Usuario: $facturaAlternaUsuario',
+    );
+
+    final count = await db.update(
       'Usuarios',
       {'Factura_Alterna_Usuario': facturaAlternaUsuario},
       where: 'Nick_Usuario = ?',
       whereArgs: [usuario],
     );
+
+    if (count > 0) {
+      print('[LOG] Actualización exitosa. Filas modificadas: $count');
+    } else {
+      print(
+        '[LOG] No se modificó ninguna fila. ¿Existe el usuario "$usuario"?',
+      );
+    }
   }
 }

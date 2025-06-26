@@ -25,6 +25,9 @@ class _InvoiceComponentState extends State<InvoiceComponent> {
 
   Future<void> _cargarUsuarios() async {
     final data = await AppDatabase.getUsuarios();
+
+    if (!mounted) return;
+
     setState(() {
       usuarios = data;
       isLoading = false;

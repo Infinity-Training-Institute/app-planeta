@@ -3,6 +3,7 @@ import 'package:app_planeta/infrastructure/local_db/models/index.dart';
 import 'package:app_planeta/presentation/components/invoce_details.dart';
 import 'package:app_planeta/presentation/components/invoice_component.dart';
 import 'package:app_planeta/providers/connectivity_provider.dart';
+import 'package:app_planeta/providers/type_factura_provider.dart';
 import 'package:app_planeta/utils/alert_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -24,17 +25,30 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // Obtener fecha actual en formato YYYY-MM-DD
-      String fechaHoy = DateFormat('yyyy-MM-dd').format(DateTime.now());
 
-      // Verificar si ya hay una actualización con la fecha de hoy
-      UpdateModel? existingUpdate = await _updateDao.getInfoByDate(fechaHoy);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _verificarYActualizar();
 
-      if (existingUpdate == null) {
-        _syncData(context);
-      }
+      // Mover aquí la llamada al provider
+      Provider.of<TypeFacturaProvider>(
+        context,
+        listen: false,
+      ).setTipoFactura(1);
     });
+  }
+
+  Future<void> _verificarYActualizar() async {
+    String fechaHoy = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+    UpdateModel? existingUpdate = await _updateDao.getInfoByDate(fechaHoy);
+
+    if (!mounted) {
+      return; // <- Evita el uso de context si el widget fue desmontado
+    }
+
+    if (existingUpdate == null) {
+      _syncData(context);
+    }
   }
 
   void _syncData(BuildContext context) async {
@@ -102,9 +116,14 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return InvoiceComponent(
-      title: "Facturación Normal",
-      body: InvoceDetails(onSync: () => _syncData(context), typeFactura: "1"),
+    return WillPopScope(
+      onWillPop: () async {
+        return false; // Bloquea la navegación atrás
+      },
+      child: InvoiceComponent(
+        title: "Facturación Normal",
+        body: InvoceDetails(onSync: () => _syncData(context), typeFactura: "1"),
+      ),
     );
   }
 }

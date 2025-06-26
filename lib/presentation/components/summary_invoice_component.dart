@@ -1,13 +1,16 @@
 import 'dart:typed_data';
 
 import 'package:app_planeta/infrastructure/local_db/models/datos_cliente_model.dart';
+import 'package:app_planeta/presentation/components/ean_scanner_component.dart';
 import 'package:app_planeta/presentation/components/invoce_details.dart';
 import 'package:app_planeta/presentation/screens/home/home_screen.dart';
+import 'package:app_planeta/providers/type_factura_provider.dart';
 import 'package:app_planeta/providers/user_provider.dart';
 import 'package:app_planeta/services/add_new_client.dart';
 import 'package:app_planeta/services/print_invoices_services.dart';
 import 'package:app_planeta/utils/currency_formatter.dart';
 import 'package:flutter/material.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
@@ -42,7 +45,7 @@ class SummaryInvoiceComponent extends StatelessWidget {
   final int mixedAmount; // Si usas mezcla de pagos
   final int changeAmount; // Cambio total si lo necesitas
   final List<Product> products;
-  final List<DatosClienteModel> datosClientes = [];
+  late List<DatosClienteModel> datosClientes = [];
 
   // Add these controllers at the class level
   final TextEditingController _cedulaController = TextEditingController();
@@ -62,7 +65,7 @@ class SummaryInvoiceComponent extends StatelessWidget {
     false,
   );
   final ValueNotifier<String> _selectedPersonType = ValueNotifier<String>(
-    'Natural',
+    'Escoge una opción',
   );
 
   SummaryInvoiceComponent({
@@ -75,35 +78,108 @@ class SummaryInvoiceComponent extends StatelessWidget {
     this.typeInvoice,
   });
 
+  /* 
+    funcion para scanear el codigo qr del cliente
+    url creacion del codigo: https://prologics.co/fact_elect/
+  */
+  Future<void> _checkCameraPermission() async {
+    var status = await Permission.camera.status;
+    if (!status.isGranted) {
+      await Permission.camera.request();
+    }
+  }
+
+  void _scanQrBarcode(BuildContext context) async {
+    await _checkCameraPermission();
+
+    if (!context.mounted) return;
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const QrScannerComponent()),
+    );
+
+    if (result != null && result is String) {
+      _llenarControllersDesdeQR(result);
+    }
+  }
+
+  void _llenarControllersDesdeQR(String data) {
+    String cleaned = data.trim().replaceAll(RegExp(r'\s+'), ' ');
+    List<String> parts = cleaned.split(' ');
+
+    if (parts.length < 9) {
+      return;
+    }
+
+    _cedulaController.text = parts[0];
+    _primerApellidoController.text = parts[1];
+    _segundoApellidoController.text = parts[2];
+    _primerNombreController.text = parts[3];
+    _segundoNombreController.text = parts[4];
+
+    // Buscar el índice del correo
+    int correoIndex = parts.indexWhere((part) => part.contains('@'));
+    if (correoIndex == -1 || correoIndex + 3 > parts.length) {
+      return;
+    }
+
+    _correoController.text = parts[correoIndex];
+
+    // Dirección: desde correoIndex + 1 hasta length - 3
+    _direccionController.text = parts
+        .sublist(correoIndex + 1, parts.length - 2)
+        .join(' ');
+    _ciudadController.text = parts[parts.length - 2];
+    _telefonoController.text = parts[parts.length - 1];
+  }
+
+  void _clearForm() {
+    _cedulaController.clear();
+    _primerApellidoController.clear();
+    _segundoApellidoController.clear();
+    _primerNombreController.clear();
+    _segundoNombreController.clear();
+    _correoController.clear();
+    _direccionController.clear();
+    _ciudadController.clear();
+    _telefonoController.clear();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Resumen de Factura'),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildCreateCustomer(),
-              ValueListenableBuilder<bool>(
-                valueListenable: _createCustomerNotifier,
-                builder: (context, createCustomer, child) {
-                  return createCustomer
-                      ? _buildCustomerForm()
-                      : const SizedBox.shrink();
-                },
-              ),
-              const SizedBox(height: 16),
-              _buildInvoiceCard(),
-              const SizedBox(height: 16),
-              _buildTransactionSummary(),
-              const SizedBox(height: 20),
-              _buildActionButtons(context),
-            ],
+    return WillPopScope(
+      onWillPop: () async {
+        return false;
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Resumen de Factura'),
+          centerTitle: true,
+          automaticallyImplyLeading: false,
+        ),
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildCreateCustomer(context),
+                ValueListenableBuilder<bool>(
+                  valueListenable: _createCustomerNotifier,
+                  builder: (context, createCustomer, child) {
+                    return createCustomer
+                        ? _buildCustomerForm(context)
+                        : const SizedBox.shrink();
+                  },
+                ),
+                const SizedBox(height: 16),
+                _buildInvoiceCard(),
+                const SizedBox(height: 16),
+                _buildTransactionSummary(),
+                const SizedBox(height: 20),
+                _buildActionButtons(context),
+              ],
+            ),
           ),
         ),
       ),
@@ -209,7 +285,15 @@ class SummaryInvoiceComponent extends StatelessWidget {
     );
   }
 
-  Widget _buildCreateCustomer() {
+  Widget _buildCreateCustomer(BuildContext context) {
+    TypeFacturaProvider typeFacturaProvider = Provider.of<TypeFacturaProvider>(
+      context,
+      listen: false,
+    );
+
+    if (typeFacturaProvider.tipoFactura == 2) {
+      _createCustomerNotifier.value = true;
+    }
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -227,16 +311,26 @@ class SummaryInvoiceComponent extends StatelessWidget {
                 children: [
                   Radio<bool>(
                     value: true,
-                    groupValue: createCustomer,
-                    onChanged: (val) => _createCustomerNotifier.value = val!,
+                    groupValue: _createCustomerNotifier.value,
+                    onChanged: (val) {
+                      _createCustomerNotifier.value = val!;
+                      // No se limpia el formulario si se selecciona "Sí"
+                    },
                   ),
                   const Text("Sí"),
-                  Radio<bool>(
-                    value: false,
-                    groupValue: createCustomer,
-                    onChanged: (val) => _createCustomerNotifier.value = val!,
-                  ),
-                  const Text("No"),
+                  if (typeFacturaProvider.tipoFactura != 2) ...[
+                    Radio<bool>(
+                      value: false,
+                      groupValue: _createCustomerNotifier.value,
+                      onChanged: (val) {
+                        _createCustomerNotifier.value = val!;
+                        if (val == false) {
+                          _clearForm(); // Limpiar si se selecciona "No"
+                        }
+                      },
+                    ),
+                    const Text("No"),
+                  ],
                 ],
               );
             },
@@ -247,7 +341,7 @@ class SummaryInvoiceComponent extends StatelessWidget {
   }
 
   // form cliente
-  Widget _buildCustomerForm() {
+  Widget _buildCustomerForm(BuildContext context) {
     return Center(
       child: Card(
         elevation: 4,
@@ -273,6 +367,10 @@ class SummaryInvoiceComponent extends StatelessWidget {
                       ),
                     ),
                     items: const [
+                      DropdownMenuItem(
+                        value: "Escoge una opción",
+                        child: Text("Escoge una opción"),
+                      ),
                       DropdownMenuItem(
                         value: "Natural",
                         child: Text("Natural"),
@@ -321,6 +419,16 @@ class SummaryInvoiceComponent extends StatelessWidget {
                 keyboardType: TextInputType.phone,
                 controller: _telefonoController,
               ),
+
+              ElevatedButton.icon(
+                onPressed: () => _scanQrBarcode(context),
+                icon: Icon(Icons.qr_code_scanner),
+                label: Text('Escanear QR'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                  textStyle: TextStyle(fontSize: 16),
+                ),
+              ),
             ],
           ),
         ),
@@ -358,7 +466,57 @@ class SummaryInvoiceComponent extends StatelessWidget {
             onPressed: () async {
               if (_createCustomerNotifier.value) {
                 try {
-                  final userProvider = Provider.of<UserProvider>(context, listen: false);
+                  // checkamos si el tipo de factura es 2 para obligar a crear el cliente
+                  TypeFacturaProvider typeFacturaProvider =
+                      Provider.of<TypeFacturaProvider>(context, listen: false);
+
+                  if (typeFacturaProvider.tipoFactura == 2) {
+                    if (_selectedPersonType.value == 'Escoge una opción') {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Seleccione un tipo de persona'),
+                          ),
+                        );
+                      }
+                      return;
+                    }
+
+                    // verificamos que los campos no esten vacios
+                    if (_cedulaController.text.isEmpty ||
+                        _primerApellidoController.text.isEmpty ||
+                        _primerNombreController.text.isEmpty ||
+                        _correoController.text.isEmpty ||
+                        _direccionController.text.isEmpty ||
+                        _ciudadController.text.isEmpty ||
+                        _telefonoController.text.isEmpty) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Complete todos los campos'),
+                          ),
+                        );
+                      }
+                      return;
+                    }
+                  }
+
+                  // checkeamos si el cliente ya existe
+                  if (datosClientes.any(
+                    (client) => client.clciud == _cedulaController.text,
+                  )) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('El cliente ya existe')),
+                      );
+                    }
+                    return;
+                  }
+
+                  final userProvider = Provider.of<UserProvider>(
+                    context,
+                    listen: false,
+                  );
                   // Create a DatosClienteModel properly using the fromMap constructor or manually
                   final clientModel = DatosClienteModel(
                     clcecl: _cedulaController.text,
@@ -428,14 +586,18 @@ class SummaryInvoiceComponent extends StatelessWidget {
                 typeInvoice,
                 changeAmount,
               ); // Generar PDF
-              await Printing.layoutPdf(
+              final didPrint = await Printing.layoutPdf(
                 onLayout: (format) async => pdf?.save() ?? Uint8List(0),
               );
 
               if (!context.mounted) return;
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (context) => HomeScreen()),
-              );
+              if (didPrint == true) {
+                // solo navega si el usuario realmente imprimio
+                Navigator.of(context).pushAndRemoveUntil(
+                  MaterialPageRoute(builder: (_) => HomeScreen()),
+                  (route) => false,
+                );
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.green,

@@ -105,7 +105,7 @@ class AppDatabase {
         // promociones (3x2, 50%)
         await db.execute('''
           CREATE TABLE IF NOT EXISTS Promociones (
-            Cod_Promocion INTEGER PRIMARY KEY AUTOINCREMENT,
+            Cod_Promocion INTEGER,
             Fecha_Promocion TEXT NOT NULL,
             Hora_Desde TEXT NOT NULL,
             Minuto_Desde TEXT NOT NULL,
@@ -119,7 +119,7 @@ class AppDatabase {
         // Tabla Promocion Hora
         await db.execute('''
           CREATE TABLE IF NOT EXISTS Promocion_Horas (
-            Cod_Promocion INTEGER PRIMARY KEY AUTOINCREMENT,
+            Cod_Promocion INTEGER,
             Fecha_Promocion TEXT NOT NULL,
             Hora_Desde TEXT NOT NULL,
             Minuto_Desde TEXT NOT NULL,
@@ -133,7 +133,7 @@ class AppDatabase {
         // Tabla Promocion Cantidad
         await db.execute('''
           CREATE TABLE IF NOT EXISTS Promocion_Cantidad (
-            Cod_Promocion INTEGER PRIMARY KEY AUTOINCREMENT,
+            Cod_Promocion INTEGER,
             Productos_Desde INTEGER NOT NULL,
             Productos_Hasta INTEGER NOT NULL,
             Porcentaje_Descuento INTEGER NOT NULL,
@@ -216,7 +216,9 @@ class AppDatabase {
             Numero_Resolucion TEXT NOT NULL, -- Resolucion
             Factura_Actual INTEGER NOT NULL, -- # Factura Actual
             Nick_Usuario TEXT NOT NULL, -- Nick Usuario
-            Clave_Tecnica TEXT NOT NULL
+            Clave_Tecnica TEXT NOT NULL,
+            Factura_Final INTEGER NOT NULL, -- # Factura Final
+            Datos_nube TEXT NOT NULL -- Datos en la nube
           )
         ''');
 

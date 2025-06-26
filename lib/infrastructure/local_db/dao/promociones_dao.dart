@@ -19,7 +19,35 @@ class PromocionesDao {
 
   Future<List<Map<String, dynamic>>> fetchPromociones() async {
     final db = await AppDatabase.database;
-    return await db.query('Promociones');
+
+    // Fecha actual (YYYY-MM-DD)
+    final String today = DateTime.now().toIso8601String().substring(0, 10);
+
+    // Hora actual en minutos desde medianoche
+    final now = DateTime.now();
+    final int currentMinutes = now.hour * 60 + now.minute;
+
+    // Obtener todas las promociones del día de hoy
+    final promocionesDeHoy = await db.query(
+      'Promociones',
+      where: 'Fecha_Promocion = ?',
+      whereArgs: [today],
+    );
+
+    // Filtrar las que estén dentro del rango horario
+    final promocionesValidas =
+        promocionesDeHoy.where((promo) {
+          final int desde =
+              (int.tryParse(promo['Hora_Desde'].toString()) ?? 0) * 60 +
+              (int.tryParse(promo['Minuto_Desde'].toString()) ?? 0);
+          final int hasta =
+              (int.tryParse(promo['Hora_Hasta'].toString()) ?? 0) * 60 +
+              (int.tryParse(promo['Minuto_Hasta'].toString()) ?? 0);
+
+          return currentMinutes >= desde && currentMinutes <= hasta;
+        }).toList();
+
+    return promocionesValidas;
   }
 
   Future<int> countPromociones() async {
@@ -47,6 +75,39 @@ class PromocionHoraDao {
       'Descuento_Promocion': promocionHoras.descuentoPromocion,
       'Usuario': promocionHoras.usuario,
     }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Map<String, dynamic>>> fetchPromocionesHoras() async {
+    final db = await AppDatabase.database;
+
+    // Fecha actual (YYYY-MM-DD)
+    final String today = DateTime.now().toIso8601String().substring(0, 10);
+
+    // Hora actual en minutos desde medianoche
+    final now = DateTime.now();
+    final int currentMinutes = now.hour * 60 + now.minute;
+
+    // Obtener todas las promociones del día de hoy
+    final promocionesDeHoy = await db.query(
+      'Promocion_Horas',
+      where: 'Fecha_Promocion = ?',
+      whereArgs: [today],
+    );
+
+    // Filtrar las que estén dentro del rango horario
+    final promocionesValidas =
+        promocionesDeHoy.where((promo) {
+          final int desde =
+              (int.tryParse(promo['Hora_Desde'].toString()) ?? 0) * 60 +
+              (int.tryParse(promo['Minuto_Desde'].toString()) ?? 0);
+          final int hasta =
+              (int.tryParse(promo['Hora_Hasta'].toString()) ?? 0) * 60 +
+              (int.tryParse(promo['Minuto_Hasta'].toString()) ?? 0);
+
+          return currentMinutes >= desde && currentMinutes <= hasta;
+        }).toList();
+
+    return promocionesValidas;
   }
 
   Future<int> countPromocionHoras() async {
