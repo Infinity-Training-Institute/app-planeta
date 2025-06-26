@@ -39,7 +39,7 @@ dependencies:
 
 ### 1. Clonar el repositorio
 ```sh
-git clone https://github.com/tu_usuario/app_planeta.git
+git clone https://github.com/Infinity-Training-Institute/app-planeta
 cd app_planeta
 ```
 
