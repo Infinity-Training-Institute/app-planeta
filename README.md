@@ -27,12 +27,22 @@ dependencies:
   flutter_launcher_icons: ^0.14.3
   flutter_spinkit: ^5.2.1
   google_fonts: ^6.2.1
+  flutter_riverpod: ^2.0.0  # Para la gestión del estado con Riverpod
+  printing: ^5.11.0         # Para imprimir PDFs desde la aplicación
+  pdf: ^3.8.4               # Para generar documentos PDF
   intl: ^0.20.2
   path: ^1.9.1
   provider: ^6.1.2
   shimmer: ^3.0.0
   sqflite: ^2.4.2
   permission_handler: ^11.0.1
+  mobile_scanner: ^6.0.7
+  audioplayers: ^6.4.0
+  crypto: ^3.0.6
+  qr_flutter: ^4.1.0
+  collection: ^1.19.1
+  shared_preferences: ^2.5.3
+  another_flushbar: ^1.12.30
 ```
 
 ## Instalación
