@@ -51,8 +51,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       if (!context.mounted) return; // Verifica si el contexto sigue disponible
       await authProvider.login(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
+        _emailController.text.trim().toLowerCase(),
+        _passwordController.text.trim().toLowerCase(),
         context,
       );
 

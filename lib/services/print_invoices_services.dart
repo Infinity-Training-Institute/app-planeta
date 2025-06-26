@@ -48,6 +48,8 @@ class InvoiceService with ChangeNotifier {
     final caja = datosCaja.isNotEmpty ? datosCaja.first : null;
     final cliente = datosCliente.isNotEmpty ? datosCliente.first : null;
 
+    print(caja?.numeroCaja);
+
     // === Aquí generamos el mapa de métodos de pago ===
     final Map<String, int> paymentValues = {
       'Efectivo': 0,
@@ -294,7 +296,7 @@ class InvoiceService with ChangeNotifier {
                   ),
                   pw.SizedBox(height: 10),
                   pw.Text(
-                    'Cajero: ${users?.nickUsuario} - Consecutivo ${users?.facturaAlternaUsuario} - ${users?.cajaUsuario}',
+                    'Cajero: ${users?.nickUsuario} - Consecutivo ${users!.facturaAlternaUsuario + 1} - ${users.cajaUsuario}',
                   ),
 
                   if (payments.length > 1) ...[
@@ -409,7 +411,37 @@ class InvoiceService with ChangeNotifier {
                       textAlign: pw.TextAlign.center,
                     ),
                   ),
-                  pw.SizedBox(height: 100),
+                  pw.SizedBox(height: 10),
+                  pw.Center(
+                    child: pw.Column(
+                      mainAxisSize: pw.MainAxisSize.min,
+                      children: [
+                        pw.Text(
+                          'A',
+                          style: pw.TextStyle(
+                            fontSize: 15,
+                            color: PdfColors.white,
+                          ),
+                        ),
+                        pw.SizedBox(height: 50),
+                        pw.Text(
+                          'B',
+                          style: pw.TextStyle(
+                            fontSize: 15,
+                            color: PdfColors.white,
+                          ),
+                        ),
+                        pw.SizedBox(height: 50),
+                        pw.Text(
+                          'C',
+                          style: pw.TextStyle(
+                            fontSize: 15,
+                            color: PdfColors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ],

@@ -81,11 +81,12 @@ class SyncronizedData with ChangeNotifier {
 
     // consultamos el stand
     final userProvider = Provider.of<StandProvider>(context, listen: false);
-  
 
     // url de descarga
     final String url =
-    'https://prologics.co/app_planeta_pruebas/controlador/descarga_datos_nube.php?stand=${userProvider.stand}';
+        'https://prologics.co/app_planeta_pruebas/controlador/descarga_datos_nube.php?stand=${userProvider.stand}';
+
+    print(url);
 
     try {
       final responseData = await dioAdapter.getRequest(url);
@@ -279,7 +280,7 @@ class SyncronizedData with ChangeNotifier {
                   nickUsuario: item['Nick_Usuario'],
                   claveTecnica: item['Clave_Tecnica'],
                   facturaFinal: item['Factura_Final'],
-                  datosNube: 0
+                  datosNube: 0,
                 ),
               );
 

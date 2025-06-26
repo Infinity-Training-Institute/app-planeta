@@ -3,6 +3,7 @@ import 'package:app_planeta/presentation/screens/sube_datos_nube/sube_datos_nube
 import 'package:app_planeta/providers/syncronized_data.dart';
 import 'package:app_planeta/providers/type_factura_provider.dart';
 import 'package:app_planeta/providers/user_provider.dart';
+import 'package:app_planeta/services/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -18,6 +19,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Solicitar permisos necesarios al iniciar la app
   await requestPermissions();
+  await SharedPreferencesService().init();
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -106,6 +108,8 @@ class ConnectionWrapper extends StatelessWidget {
       future: _getTipoUsuario(context), // Aquí se pasa el context
       builder: (context, snapshot) {
         final tipoUsuario = snapshot.data;
+
+        print("tipoUsuario: $tipoUsuario");
 
         if (!authProvider.isAuthenticated) {
           return const LoginScreen();

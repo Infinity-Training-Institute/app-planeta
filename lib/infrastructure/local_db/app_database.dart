@@ -13,10 +13,10 @@ class AppDatabase {
 
   static Future<Database> _initDatabase() async {
     // Obtén la ruta de la base de datos
-    // String path = join(await getDatabasesPath(), 'app_database.db');
+    //String path = join(await getDatabasesPath(), 'app_database.db');
 
     // Elimina la base de datos
-    // await deleteDatabase(path);
+    //await deleteDatabase(path);
     return openDatabase(
       join(await getDatabasesPath(), 'app_database.db'),
       version: 2,
@@ -105,7 +105,7 @@ class AppDatabase {
         // promociones (3x2, 50%)
         await db.execute('''
           CREATE TABLE IF NOT EXISTS Promociones (
-            Cod_Promocion INTEGER PRIMARY KEY AUTOINCREMENT,
+            Cod_Promocion INTEGER,
             Fecha_Promocion TEXT NOT NULL,
             Hora_Desde TEXT NOT NULL,
             Minuto_Desde TEXT NOT NULL,
@@ -119,7 +119,7 @@ class AppDatabase {
         // Tabla Promocion Hora
         await db.execute('''
           CREATE TABLE IF NOT EXISTS Promocion_Horas (
-            Cod_Promocion INTEGER PRIMARY KEY AUTOINCREMENT,
+            Cod_Promocion INTEGER,
             Fecha_Promocion TEXT NOT NULL,
             Hora_Desde TEXT NOT NULL,
             Minuto_Desde TEXT NOT NULL,
@@ -133,7 +133,7 @@ class AppDatabase {
         // Tabla Promocion Cantidad
         await db.execute('''
           CREATE TABLE IF NOT EXISTS Promocion_Cantidad (
-            Cod_Promocion INTEGER PRIMARY KEY AUTOINCREMENT,
+            Cod_Promocion INTEGER,
             Productos_Desde INTEGER NOT NULL,
             Productos_Hasta INTEGER NOT NULL,
             Porcentaje_Descuento INTEGER NOT NULL,

@@ -12,7 +12,7 @@ class EanScannerComponent extends StatefulWidget {
 class _EanScannerComponentState extends State<EanScannerComponent> {
   final MobileScannerController controller = MobileScannerController(
     formats: [BarcodeFormat.all],
-    detectionSpeed: DetectionSpeed.noDuplicates,
+    detectionSpeed: DetectionSpeed.normal,
     facing: CameraFacing.back,
     torchEnabled: false,
   );
